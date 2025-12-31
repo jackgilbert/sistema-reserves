@@ -1,15 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { prisma, Instance, Domain } from '@sistema-reservas/db';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 
 @Injectable()
 export class InstancesService {
-  /**
-   * Crear una nueva instancia
-   */
-  async create(dto: CreateInstanceDto): Promise<Instance & { domains: Domain[] }> {
-    return prisma.instance.create({
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(dto: CreateInstanceDto) {
+    return this.prisma.instance.create({
       data: {
         slug: dto.slug,
         name: dto.name,
@@ -34,11 +33,8 @@ export class InstancesService {
     });
   }
 
-  /**
-   * Listar todas las instancias
-   */
-  async findAll(): Promise<any[]> {
-    return prisma.instance.findMany({
+  async findAll() {
+    return this.prisma.instance.findMany({
       include: {
         domains: true,
         _count: {
@@ -55,11 +51,8 @@ export class InstancesService {
     });
   }
 
-  /**
-   * Obtener una instancia por ID
-   */
-  async findOne(id: string): Promise<(Instance & { domains: Domain[] }) | null> {
-    return prisma.instance.findUnique({
+  async findOne(id: string) {
+    return this.prisma.instance.findUnique({
       where: { id },
       include: {
         domains: true,
@@ -67,11 +60,8 @@ export class InstancesService {
     });
   }
 
-  /**
-   * Obtener una instancia por slug
-   */
-  async findBySlug(slug: string): Promise<(Instance & { domains: Domain[] }) | null> {
-    return prisma.instance.findUnique({
+  async findBySlug(slug: string) {
+    return this.prisma.instance.findUnique({
       where: { slug },
       include: {
         domains: true,
@@ -79,11 +69,8 @@ export class InstancesService {
     });
   }
 
-  /**
-   * Actualizar una instancia
-   */
-  async update(id: string, dto: UpdateInstanceDto): Promise<Instance & { domains: Domain[] }> {
-    return prisma.instance.update({
+  async update(id: string, dto: UpdateInstanceDto) {
+    return this.prisma.instance.update({
       where: { id },
       data: {
         name: dto.name,
@@ -103,20 +90,14 @@ export class InstancesService {
     });
   }
 
-  /**
-   * Eliminar una instancia
-   */
-  async remove(id: string): Promise<Instance> {
-    return prisma.instance.delete({
+  async remove(id: string) {
+    return this.prisma.instance.delete({
       where: { id },
     });
   }
 
-  /**
-   * Añadir un dominio a una instancia
-   */
-  async addDomain(instanceId: string, domain: string, isPrimary = false): Promise<Domain> {
-    return prisma.domain.create({
+  async addDomain(instanceId: string, domain: string, isPrimary = false) {
+    return this.prisma.domain.create({
       data: {
         domain,
         instanceId,
@@ -125,11 +106,8 @@ export class InstancesService {
     });
   }
 
-  /**
-   * Eliminar un dominio
-   */
-  async removeDomain(domainId: string): Promise<Domain> {
-    return prisma.domain.delete({
+  async removeDomain(domainId: string) {
+    return this.prisma.domain.delete({
       where: { id: domainId },
     });
   }

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { PrismaModule } from './prisma/prisma.module';
 import { TenantModule } from './tenant/tenant.module';
 import { InstancesModule } from './instances/instances.module';
 import { AuthModule } from './auth/auth.module';
@@ -15,6 +16,7 @@ import { CheckInModule } from './checkin/checkin.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    PrismaModule,
     TenantModule,
     InstancesModule,
     AuthModule,
