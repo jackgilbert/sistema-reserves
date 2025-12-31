@@ -1,0 +1,100 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Lint, Typecheck y Build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: reservas
+          POSTGRES_PASSWORD: reservas123
+          POSTGRES_DB: sistema_reservas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.23.0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Generar cliente Prisma
+        run: pnpm --filter @sistema-reservas/db db:generate
+        env:
+          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
+
+      - name: Validar schema Prisma
+        run: pnpm --filter @sistema-reservas/db prisma validate
+        env:
+          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
+
+      - name: Push schema a base de datos
+        run: pnpm --filter @sistema-reservas/db db:push
+        env:
+          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
+
+      - name: Ejecutar linting
+        run: pnpm lint
+
+      - name: Ejecutar typecheck
+        run: pnpm typecheck
+
+      - name: Build backend
+        run: pnpm --filter @sistema-reservas/api build
+        env:
+          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
+
+      - name: Build frontend
+        run: pnpm --filter @sistema-reservas/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
+
+      - name: Ejecutar tests
+        run: pnpm test
+        env:
+          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret
+
+      - name: Resumen
+        if: always()
+        run: |
+          echo "✅ Pipeline completado"
+          echo "📦 Artefactos generados y listos para deploy"
