@@ -43,7 +43,7 @@ jobs:
       - name: Configurar pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 10.23.0
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
