@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { prisma } from '@sistema-reservas/db';
+import { prisma, Instance, Domain } from '@sistema-reservas/db';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 
@@ -8,7 +8,7 @@ export class InstancesService {
   /**
    * Crear una nueva instancia
    */
-  async create(dto: CreateInstanceDto) {
+  async create(dto: CreateInstanceDto): Promise<Instance & { domains: Domain[] }> {
     return prisma.instance.create({
       data: {
         slug: dto.slug,
@@ -37,7 +37,7 @@ export class InstancesService {
   /**
    * Listar todas las instancias
    */
-  async findAll() {
+  async findAll(): Promise<any[]> {
     return prisma.instance.findMany({
       include: {
         domains: true,
@@ -58,7 +58,7 @@ export class InstancesService {
   /**
    * Obtener una instancia por ID
    */
-  async findOne(id: string) {
+  async findOne(id: string): Promise<(Instance & { domains: Domain[] }) | null> {
     return prisma.instance.findUnique({
       where: { id },
       include: {
@@ -70,7 +70,7 @@ export class InstancesService {
   /**
    * Obtener una instancia por slug
    */
-  async findBySlug(slug: string) {
+  async findBySlug(slug: string): Promise<(Instance & { domains: Domain[] }) | null> {
     return prisma.instance.findUnique({
       where: { slug },
       include: {
@@ -82,7 +82,7 @@ export class InstancesService {
   /**
    * Actualizar una instancia
    */
-  async update(id: string, dto: UpdateInstanceDto) {
+  async update(id: string, dto: UpdateInstanceDto): Promise<Instance & { domains: Domain[] }> {
     return prisma.instance.update({
       where: { id },
       data: {
@@ -106,7 +106,7 @@ export class InstancesService {
   /**
    * Eliminar una instancia
    */
-  async remove(id: string) {
+  async remove(id: string): Promise<Instance> {
     return prisma.instance.delete({
       where: { id },
     });
@@ -115,7 +115,7 @@ export class InstancesService {
   /**
    * Añadir un dominio a una instancia
    */
-  async addDomain(instanceId: string, domain: string, isPrimary = false) {
+  async addDomain(instanceId: string, domain: string, isPrimary = false): Promise<Domain> {
     return prisma.domain.create({
       data: {
         domain,
@@ -128,7 +128,7 @@ export class InstancesService {
   /**
    * Eliminar un dominio
    */
-  async removeDomain(domainId: string) {
+  async removeDomain(domainId: string): Promise<Domain> {
     return prisma.domain.delete({
       where: { id: domainId },
     });

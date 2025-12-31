@@ -5,6 +5,7 @@ import { TenantContext } from '@sistema-reservas/shared';
 
 // Extender el tipo Request para incluir tenant
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       tenant?: TenantContext;
@@ -19,21 +20,23 @@ export class TenantMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     // Obtener el dominio del header Host
     const host = req.get('host') || req.hostname;
-    
+
     // Remover el puerto si existe
     const domain = host.split(':')[0];
 
     try {
       // Resolver tenant
       const tenant = await this.tenantService.resolveTenantByDomain(domain);
-      
+
       // Adjuntar al request
       req.tenant = tenant;
-      
+
       next();
     } catch (error) {
       // Si no se encuentra el tenant, devolver 404
-      throw new NotFoundException(`Instancia no encontrada para el dominio: ${domain}`);
+      throw new NotFoundException(
+        `Instancia no encontrada para el dominio: ${domain}`,
+      );
     }
   }
 }

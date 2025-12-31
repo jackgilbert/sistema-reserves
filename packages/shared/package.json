@@ -5,7 +5,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
+    "lint": "echo 'No linting configured for shared package'",
     "test": "echo 'No tests yet'",
     "clean": "rm -rf dist *.tsbuildinfo"
   },

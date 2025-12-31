@@ -6,7 +6,7 @@ import { TenantContext } from '@sistema-reservas/shared';
 export class TenantService {
   // Cache simple en memoria (en producción usar Redis)
   private domainCache = new Map<string, TenantContext>();
-  
+
   /**
    * Resuelve el tenant basado en el dominio de la petición
    */
@@ -23,7 +23,9 @@ export class TenantService {
     });
 
     if (!domainRecord || !domainRecord.instance.active) {
-      throw new NotFoundException(`No se encontró una instancia activa para el dominio: ${domain}`);
+      throw new NotFoundException(
+        `No se encontró una instancia activa para el dominio: ${domain}`,
+      );
     }
 
     const tenantContext: TenantContext = {
