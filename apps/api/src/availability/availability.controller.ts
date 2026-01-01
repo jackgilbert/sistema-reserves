@@ -1,6 +1,6 @@
 import { Controller, Get, Query, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
-import { AvailabilityService } from './availability.service';
+import { AvailabilityService, TimeSlot } from './availability.service';
 import { QueryAvailabilityDto } from './dto/query-availability.dto';
 import { TenantService } from '../tenant/tenant.service';
 
@@ -46,7 +46,7 @@ export class AvailabilityController {
   async getAvailability(
     @Query() query: QueryAvailabilityDto,
     @Headers('x-tenant-domain') domain: string,
-  ) {
+  ): Promise<Record<string, TimeSlot[]>> {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
     return this.availabilityService.getAvailability(
       query.offeringId,

@@ -134,7 +134,7 @@ export class HoldsService {
   /**
    * Obtener un hold por ID
    */
-  async getHold(holdId: string, tenant: TenantContext) {
+  async getHold(holdId: string, tenant: TenantContext): Promise<unknown> {
     const hold = await this.prisma.hold.findFirst({
       where: {
         tenantId: tenant.tenantId,

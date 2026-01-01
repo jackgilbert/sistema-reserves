@@ -50,7 +50,7 @@ export class HoldsController {
   async getHold(
     @Param('id') id: string,
     @Headers('x-tenant-domain') domain: string,
-  ) {
+  ): Promise<unknown> {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
     return this.holdsService.getHold(id, tenant);
   }

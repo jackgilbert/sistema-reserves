@@ -18,7 +18,7 @@ export class OfferingsController {
   async create(
     @Body() dto: CreateOfferingDto,
     @Tenant() tenant: TenantContext,
-  ) {
+  ): Promise<unknown> {
     return this.offeringsService.create(dto, tenant);
   }
 
@@ -28,7 +28,7 @@ export class OfferingsController {
   async findAll(
     @Query('activeOnly') activeOnly: string,
     @Tenant() tenant: TenantContext,
-  ) {
+  ): Promise<unknown[]> {
     const active = activeOnly !== 'false';
     return this.offeringsService.findAll(tenant, active);
   }
@@ -40,7 +40,7 @@ export class OfferingsController {
   async findOnePublic(
     @Param('id') id: string,
     @Tenant() tenant: TenantContext,
-  ) {
+  ): Promise<unknown> {
     return this.offeringsService.findOne(id, tenant);
   }
 
@@ -51,7 +51,7 @@ export class OfferingsController {
   async findOne(
     @Param('id') id: string,
     @Tenant() tenant: TenantContext,
-  ) {
+  ): Promise<unknown> {
     return this.offeringsService.findOne(id, tenant);
   }
 
@@ -63,7 +63,7 @@ export class OfferingsController {
     @Param('id') id: string,
     @Body() dto: UpdateOfferingDto,
     @Tenant() tenant: TenantContext,
-  ) {
+  ): Promise<unknown> {
     return this.offeringsService.toggleActive(id, dto.active ?? true, tenant);
   }
 
@@ -94,7 +94,7 @@ export class OfferingsController {
     @Param('id') id: string,
     @Body() dto: { name: string; description?: string },
     @Tenant() tenant: TenantContext,
-  ) {
+  ): Promise<unknown> {
     return this.offeringsService.createResources(
       { offeringId: id, resources: [{ code: dto.name, name: dto.name }] },
       tenant,

@@ -155,7 +155,7 @@ export class BookingsService {
   /**
    * Listar todas las reservas del tenant
    */
-  async findAll(tenant: TenantContext) {
+  async findAll(tenant: TenantContext): Promise<unknown[]> {
     const bookings = await this.prisma.booking.findMany({
       where: {
         tenantId: tenant.tenantId,
@@ -180,7 +180,7 @@ export class BookingsService {
   /**
    * Obtener una reserva por código
    */
-  async findByCode(code: string, tenant: TenantContext) {
+  async findByCode(code: string, tenant: TenantContext): Promise<unknown> {
     const booking = await this.prisma.booking.findFirst({
       where: {
         tenantId: tenant.tenantId,

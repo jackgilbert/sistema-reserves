@@ -3,7 +3,7 @@ import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { startOfDay, endOfDay, addDays, parseISO, setHours, setMinutes, addMinutes } from 'date-fns';
 
-interface TimeSlot {
+export interface TimeSlot {
   start: string;
   end: string;
   available: number;

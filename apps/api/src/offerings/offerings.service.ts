@@ -42,7 +42,7 @@ export class OfferingsService {
   /**
    * Crear nueva offering
    */
-  async create(dto: CreateOfferingDto, tenant: TenantContext) {
+  async create(dto: CreateOfferingDto, tenant: TenantContext): Promise<unknown> {
     const { slug, name, description, type, basePrice, currency, capacity, active, schedule, priceVariants } = dto;
 
     // Verificar que el slug no exista
@@ -95,7 +95,7 @@ export class OfferingsService {
   /**
    * Listar todas las offerings del tenant
    */
-  async findAll(tenant: TenantContext, activeOnly = false) {
+  async findAll(tenant: TenantContext, activeOnly = false): Promise<unknown[]> {
     const offerings = await this.prisma.offering.findMany({
       where: {
         tenantId: tenant.tenantId,
@@ -120,7 +120,7 @@ export class OfferingsService {
   /**
    * Obtener una offering por ID
    */
-  async findOne(id: string, tenant: TenantContext) {
+  async findOne(id: string, tenant: TenantContext): Promise<unknown> {
     const offering = await this.prisma.offering.findFirst({
       where: {
         tenantId: tenant.tenantId,
@@ -144,7 +144,7 @@ export class OfferingsService {
   /**
    * Obtener offering por slug
    */
-  async findBySlug(slug: string, tenant: TenantContext) {
+  async findBySlug(slug: string, tenant: TenantContext): Promise<unknown> {
     const offering = await this.prisma.offering.findFirst({
       where: {
         tenantId: tenant.tenantId,
@@ -166,7 +166,7 @@ export class OfferingsService {
   /**
    * Activar/desactivar offering
    */
-  async toggleActive(id: string, active: boolean, tenant: TenantContext) {
+  async toggleActive(id: string, active: boolean, tenant: TenantContext): Promise<unknown> {
     await this.findOne(id, tenant);
 
     const updated = await this.prisma.offering.update({
@@ -184,7 +184,7 @@ export class OfferingsService {
   /**
    * Crear recursos para una offering tipo RESOURCE
    */
-  async createResources(dto: CreateResourceDto, tenant: TenantContext) {
+  async createResources(dto: CreateResourceDto, tenant: TenantContext): Promise<unknown> {
     const { offeringId, resources } = dto;
 
     // Verificar que la offering existe y es tipo RESOURCE

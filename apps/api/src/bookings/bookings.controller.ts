@@ -39,7 +39,7 @@ export class BookingsController {
   async getBookingByCode(
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
-  ) {
+  ): Promise<unknown> {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
     return this.bookingsService.findByCode(code, tenant);
   }
@@ -52,7 +52,7 @@ export class BookingsController {
   async getBookingByCodePublic(
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
-  ) {
+  ): Promise<unknown> {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
     return this.bookingsService.findByCode(code, tenant);
   }
@@ -93,7 +93,7 @@ export class BookingsController {
   @ApiResponse({ status: 200, description: 'Lista de bookings' })
   async listBookings(
     @Headers('x-tenant-domain') domain: string,
-  ) {
+  ): Promise<unknown[]> {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
     return this.bookingsService.findAll(tenant);
   }
