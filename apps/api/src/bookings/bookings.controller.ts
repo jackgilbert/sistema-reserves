@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, Query, Headers, Patch } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Headers, Patch } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { BookingsService, CreateBookingFromHoldDto } from './bookings.service';
 import { TenantService } from '../tenant/tenant.service';
