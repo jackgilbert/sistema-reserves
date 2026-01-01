@@ -1,6 +1,15 @@
 // Cliente API para comunicarse con el backend
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Para server-side (SSR), siempre usar localhost
+// Para client-side, usar la URL pública o localhost
+function getApiUrl(): string {
+  // Si estamos en el servidor (Node.js)
+  if (typeof window === 'undefined') {
+    return process.env.API_URL || 'http://localhost:3001';
+  }
+  // Si estamos en el cliente (browser)
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+}
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string>;
@@ -12,6 +21,8 @@ export async function fetchApi<T>(
 ): Promise<T> {
   const { params, ...fetchOptions } = options;
   
+  const API_URL = getApiUrl();
+  
   // Construir URL con parámetros
   let url = `${API_URL}${endpoint}`;
   if (params) {
@@ -21,6 +32,8 @@ export async function fetchApi<T>(
 
   // Obtener el dominio actual para el header de tenant
   const domain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+
+  console.log(`[API] Fetching ${url} with domain: ${domain} (isServer: ${typeof window === 'undefined'})`);
 
   const response = await fetch(url, {
     ...fetchOptions,
@@ -32,8 +45,29 @@ export async function fetchApi<T>(
   });
 
   if (!response.ok) {
+    console.error(`[API] Error ${response.status} from ${url}`);
+    const contentType = response.headers.get('content-type');
+    
+    // Si la respuesta no es JSON (por ejemplo, HTML de error), loguear el contenido
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error(`[API] Response is not JSON. Content-Type: ${contentType}`);
+      console.error(`[API] Response body (first 500 chars):`, text.substring(0, 500));
+      throw new Error(`API returned ${response.status}: Expected JSON but got ${contentType || 'unknown type'}`);
+    }
+    
     const error = await response.json().catch(() => ({ message: 'Error desconocido' }));
+    console.error(`[API] Error details:`, error);
     throw new Error(error.message || `Error ${response.status}`);
+  }
+
+  // Verificar que la respuesta exitosa también sea JSON
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const text = await response.text();
+    console.error(`[API] Success response is not JSON. Content-Type: ${contentType}`);
+    console.error(`[API] Response body (first 500 chars):`, text.substring(0, 500));
+    throw new Error(`API returned HTML instead of JSON. The API might not be running or the URL might be incorrect.`);
   }
 
   return response.json();
