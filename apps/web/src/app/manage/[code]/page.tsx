@@ -31,18 +31,6 @@ export default function ManageBookingPage({ params }: { params: { code: string }
     loadBooking();
   }, [loadBooking]);
 
-  async function handleCancel() {
-    try {
-      setLoading(true);
-      const data = await api.bookings.getByCode(params.code);
-      setBooking(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Reserva no encontrada');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const handleCancel = async () => {
     if (!booking) return;
 
