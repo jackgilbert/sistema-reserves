@@ -82,7 +82,7 @@ export const api = {
   
   availability: {
     get: (offeringId: string, startDate: string, endDate: string) =>
-      fetchApi<AvailabilitySlot[]>('/availability', {
+      fetchApi<Record<string, AvailabilitySlot[]>>('/availability', {
         params: { offeringId, startDate, endDate },
       }),
   },

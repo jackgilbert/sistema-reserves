@@ -41,7 +41,12 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
         const startDate = toISODate(selectedDate);
         const endDate = toISODate(addDays(selectedDate, 1));
         const data = await api.availability.get(params.id, startDate, endDate);
-        setSlots(data);
+        
+        // El API retorna un objeto con fechas como keys: { "2025-01-01": [...slots] }
+        // Extraer los slots del primer día
+        const dateKey = Object.keys(data)[0];
+        const daySlots = dateKey ? data[dateKey] : [];
+        setSlots(Array.isArray(daySlots) ? daySlots : []);
       } catch (e) {
         console.error('Error al cargar disponibilidad:', e);
         setSlots([]);
