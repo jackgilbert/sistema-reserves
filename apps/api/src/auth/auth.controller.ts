@@ -50,7 +50,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Obtener perfil del usuario autenticado' })
   @ApiResponse({ status: 200, description: 'Perfil del usuario' })
   @ApiResponse({ status: 401, description: 'No autenticado' })
-  async getProfile(@Request() req: any) {
+  async getProfile(@Request() req: { user: { id: string; tenantId: string } }) {
     return this.authService.getProfile(req.user.id, req.user.tenantId);
   }
 }

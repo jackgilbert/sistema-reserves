@@ -92,7 +92,6 @@ export class BookingsController {
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Lista de bookings' })
   async listBookings(
-    @Query() filters: any,
     @Headers('x-tenant-domain') domain: string,
   ) {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');

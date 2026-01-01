@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { customAlphabet } from 'nanoid';
@@ -86,7 +86,7 @@ export class BookingsService {
           customerName: name,
           customerPhone: phone || null,
           confirmedAt: new Date(),
-          metadata: hold.metadata as any,
+          metadata: hold.metadata || {},
         },
       });
 
@@ -261,7 +261,7 @@ export class BookingsService {
   /**
    * Confirmar pago (webhook)
    */
-  async confirmPayment(paymentId: string, tenant: TenantContext) {
+  async confirmPayment() {
     // Implementar lógica de confirmación de pago
     // Por ahora retornar placeholder
     return { success: true };

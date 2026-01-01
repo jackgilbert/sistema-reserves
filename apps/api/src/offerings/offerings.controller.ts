@@ -81,11 +81,7 @@ export class OfferingsController {
   @Post(':id/variants')
   @ApiOperation({ summary: 'Añadir variante a una oferta' })
   @ApiResponse({ status: 201, description: 'Variante creada' })
-  async createVariant(
-    @Param('id') id: string,
-    @Body() dto: { name: string; price: number; description?: string },
-    @Tenant() tenant: TenantContext,
-  ) {
+  async createVariant() {
     // Variants are stored in JSON field, not implemented yet
     return { message: 'Variants not implemented yet' };
   }
