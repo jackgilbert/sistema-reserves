@@ -26,7 +26,7 @@ export class InstancesController {
 
   @Get()
   @ApiOperation({ summary: 'Listar todas las instancias' })
-  findAll(): Promise<any[]> {
+  findAll(): Promise<Array<Instance & { domains: Domain[]; _count: { offerings: number; bookings: number; users: number } }>> {
     return this.instancesService.findAll();
   }
 

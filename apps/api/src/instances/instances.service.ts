@@ -37,7 +37,7 @@ export class InstancesService {
   /**
    * Listar todas las instancias
    */
-  async findAll(): Promise<any[]> {
+  async findAll(): Promise<Array<Instance & { domains: Domain[]; _count: { offerings: number; bookings: number; users: number } }>> {
     return prisma.instance.findMany({
       include: {
         domains: true,
