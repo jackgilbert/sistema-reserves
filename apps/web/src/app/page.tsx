@@ -7,8 +7,11 @@ export default async function HomePage() {
   let error: string | null = null;
 
   try {
+    console.log('[HomePage] Fetching offerings...');
     offerings = await api.offerings.list();
+    console.log('[HomePage] Offerings fetched:', offerings.length);
   } catch (e) {
+    console.error('[HomePage] Error fetching offerings:', e);
     error = e instanceof Error ? e.message : 'Error al cargar las ofertas';
   }
 

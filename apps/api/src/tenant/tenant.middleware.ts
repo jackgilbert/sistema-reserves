@@ -18,11 +18,15 @@ export class TenantMiddleware implements NestMiddleware {
   constructor(private readonly tenantService: TenantService) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
-    // Obtener el dominio del header Host
-    const host = req.get('host') || req.hostname;
-
-    // Remover el puerto si existe
-    const domain = host.split(':')[0];
+    // Obtener el dominio del header x-tenant-domain primero, luego Host
+    let domain = req.get('x-tenant-domain');
+    
+    if (!domain) {
+      // Obtener el dominio del header Host
+      const host = req.get('host') || req.hostname;
+      // Remover el puerto si existe
+      domain = host.split(':')[0];
+    }
 
     try {
       // Resolver tenant

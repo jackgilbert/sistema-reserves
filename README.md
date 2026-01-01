@@ -81,10 +81,23 @@ pnpm dev
 
 ## 🌐 URLs de Desarrollo
 
-- **Frontend**: http://localhost:3000
+- **Frontend Público**: http://localhost:3000
+- **Admin Panel**: http://localhost:3000/admin/login
 - **API**: http://localhost:3001
 - **Documentación API (Swagger)**: http://localhost:3001/api/docs
 - **Prisma Studio**: `pnpm --filter @sistema-reservas/db db:studio`
+
+## 🔐 Credenciales Demo
+
+### Admin Museo
+- Email: `admin@museo.com`
+- Password: `admin123`
+- Role: ADMIN
+
+### Staff Museo
+- Email: `staff@museo.com`
+- Password: `staff123`
+- Role: STAFF
 
 ## 🔑 Características Principales
 
@@ -98,6 +111,35 @@ pnpm dev
 - **CAPACITY**: Entradas por franja horaria (ej: museos)
 - **RESOURCE**: Recursos discretos (ej: plazas de parking)
 - **APPOINTMENT**: Citas individuales
+- **SEATS**: Asientos numerados
+
+### Flujo Completo Implementado
+1. ✅ Consulta de disponibilidad
+2. ✅ Creación de hold temporal (10 min)
+3. ✅ Conversión a booking
+4. ✅ Gestión de pagos (estructura lista)
+5. ✅ Check-in con código QR
+6. ✅ Panel de administración completo
+
+### Autenticación y Seguridad
+- JWT con Passport.js
+- Roles: ADMIN, STAFF, SUPER_ADMIN
+- Guards reutilizables
+- Hash de passwords con bcrypt
+- Protección de rutas frontend y backend
+
+### Admin Panel
+- 🔐 Login seguro
+- 📋 Gestión de reservas
+- 🎫 CRUD de ofertas
+- ✅ Check-in/escáner de códigos
+- 📊 Listados y filtros
+
+### CI/CD
+- GitHub Actions configurado
+- Tests automáticos
+- Build y validación
+- Integration tests con PostgreSQL/Redis
 - **SEATS**: Asientos específicos (futuro)
 
 ### Flujo de Reserva

@@ -1,36 +1,44 @@
-// Enums y tipos compartidos
+// Enums y tipos compartidos (como const objects para compatibilidad con Node.js v24)
 
-export enum OfferingType {
-  CAPACITY = 'CAPACITY',
-  RESOURCE = 'RESOURCE',
-  APPOINTMENT = 'APPOINTMENT',
-  SEATS = 'SEATS'
-}
+export const OfferingType = {
+  CAPACITY: 'CAPACITY',
+  RESOURCE: 'RESOURCE',
+  APPOINTMENT: 'APPOINTMENT',
+  SEATS: 'SEATS'
+} as const;
 
-export enum BookingStatus {
-  HOLD = 'HOLD',
-  CONFIRMED = 'CONFIRMED',
-  CANCELLED = 'CANCELLED',
-  REFUNDED = 'REFUNDED',
-  USED = 'USED'
-}
+export type OfferingType = typeof OfferingType[keyof typeof OfferingType];
 
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED'
-}
+export const BookingStatus = {
+  HOLD: 'HOLD',
+  CONFIRMED: 'CONFIRMED',
+  CANCELLED: 'CANCELLED',
+  REFUNDED: 'REFUNDED',
+  USED: 'USED'
+} as const;
 
-export enum DayOfWeek {
-  MONDAY = 0,
-  TUESDAY = 1,
-  WEDNESDAY = 2,
-  THURSDAY = 3,
-  FRIDAY = 4,
-  SATURDAY = 5,
-  SUNDAY = 6
-}
+export type BookingStatus = typeof BookingStatus[keyof typeof BookingStatus];
+
+export const PaymentStatus = {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  REFUNDED: 'REFUNDED'
+} as const;
+
+export type PaymentStatus = typeof PaymentStatus[keyof typeof PaymentStatus];
+
+export const DayOfWeek = {
+  MONDAY: 0,
+  TUESDAY: 1,
+  WEDNESDAY: 2,
+  THURSDAY: 3,
+  FRIDAY: 4,
+  SATURDAY: 5,
+  SUNDAY: 6
+} as const;
+
+export type DayOfWeek = typeof DayOfWeek[keyof typeof DayOfWeek];
 
 export interface TenantContext {
   tenantId: string;
@@ -48,5 +56,3 @@ export interface BrandingConfig {
 export interface FeatureFlags {
   [key: string]: boolean;
 }
-
-export * from './validators';

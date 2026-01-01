@@ -48,6 +48,11 @@ export class AvailabilityController {
     @Headers('x-tenant-domain') domain: string,
   ) {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
-    return this.availabilityService.getAvailability(query, tenant);
+    return this.availabilityService.getAvailability(
+      query.offeringId,
+      query.startDate,
+      query.endDate,
+      tenant,
+    );
   }
 }
