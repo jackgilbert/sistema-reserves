@@ -67,7 +67,7 @@ export class BookingsController {
     @Headers('x-tenant-domain') domain: string,
   ) {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
-    const booking = await this.bookingsService.findByCode(code, tenant);
+    const booking = await this.bookingsService.findByCode(code, tenant) as { id: string };
     await this.bookingsService.cancel(booking.id, tenant);
     return { message: 'Reserva cancelada exitosamente' };
   }
@@ -82,7 +82,7 @@ export class BookingsController {
     @Headers('x-tenant-domain') domain: string,
   ) {
     const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
-    const booking = await this.bookingsService.findByCode(code, tenant);
+    const booking = (await this.bookingsService.findByCode(code, tenant)) as { id: string };
     await this.bookingsService.cancel(booking.id, tenant);
     return { message: 'Reserva cancelada exitosamente' };
   }

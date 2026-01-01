@@ -188,7 +188,7 @@ export class OfferingsService {
     const { offeringId, resources } = dto;
 
     // Verificar que la offering existe y es tipo RESOURCE
-    const offering = await this.findOne(offeringId, tenant);
+    const offering = (await this.findOne(offeringId, tenant)) as { type: string };
 
     if (offering.type !== 'RESOURCE') {
       throw new BadRequestException('Solo se pueden crear recursos para offerings tipo RESOURCE');
