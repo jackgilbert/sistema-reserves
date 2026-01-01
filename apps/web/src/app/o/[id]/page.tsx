@@ -132,6 +132,7 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
             {/* Imagen */}
             <div className="aspect-video bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg overflow-hidden">
               {offering.images && offering.images.length > 0 ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={offering.images[0]}
                   alt={offering.name}

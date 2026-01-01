@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, Booking } from '@/lib/api';
@@ -14,11 +14,24 @@ export default function ManageBookingPage({ params }: { params: { code: string }
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadBooking();
+  const loadBooking = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await api.bookings.getByCode(params.code);
+      setBooking(data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar la reserva');
+    } finally {
+      setLoading(false);
+    }
   }, [params.code]);
 
-  async function loadBooking() {
+  useEffect(() => {
+    loadBooking();
+  }, [loadBooking]);
+
+  async function handleCancel() {
     try {
       setLoading(true);
       const data = await api.bookings.getByCode(params.code);

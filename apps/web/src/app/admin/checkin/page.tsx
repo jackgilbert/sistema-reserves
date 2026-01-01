@@ -205,8 +205,8 @@ export default function AdminCheckinPage() {
           <h3 className="text-sm font-medium text-gray-900">💡 Instrucciones</h3>
           <ul className="mt-2 text-sm text-gray-600 space-y-1">
             <li>• Introduce o escanea el código de 8 caracteres</li>
-            <li>• "Realizar Check-in" marca la reserva como utilizada</li>
-            <li>• "Solo Verificar" consulta el estado sin modificar</li>
+            <li>• &quot;Realizar Check-in&quot; marca la reserva como utilizada</li>
+            <li>• &quot;Solo Verificar&quot; consulta el estado sin modificar</li>
             <li>• El código se limpia automáticamente tras cada operación</li>
           </ul>
         </div>
