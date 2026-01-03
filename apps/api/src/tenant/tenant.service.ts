@@ -20,42 +20,56 @@ export class TenantService {
       );
     }
 
-    console.log(`🔍 Buscando dominio: ${domain}`);
+    // Normalizar dominios de desarrollo a 'localhost'
+    const normalizedDomain = this.normalizeDomain(domain);
+    console.log(`🔍 Buscando dominio: ${domain} (normalizado: ${normalizedDomain})`);
 
     // Verificar cache
-    if (this.domainCache.has(domain)) {
-      console.log(`✅ Dominio ${domain} encontrado en cache`);
-      return this.domainCache.get(domain)!;
+    if (this.domainCache.has(normalizedDomain)) {
+      console.log(`✅ Dominio ${normalizedDomain} encontrado en cache`);
+      return this.domainCache.get(normalizedDomain)!;
     }
 
-    console.log(`📡 Consultando base de datos para: ${domain}`);
+    console.log(`📡 Consultando base de datos para: ${normalizedDomain}`);
 
     // Buscar en base de datos
     let domainRecord;
     try {
       domainRecord = await this.prisma.domain.findUnique({
-        where: { domain },
+        where: { domain: normalizedDomain },
         include: { instance: true },
       });
-      console.log(`📊 Resultado de búsqueda para ${domain}:`, domainRecord ? 'ENCONTRADO' : 'NO ENCONTRADO');
+      console.log(`📊 Resultado de búsqueda para ${normalizedDomain}:`, domainRecord ? 'ENCONTRADO' : 'NO ENCONTRADO');
     } catch (error) {
-      console.error(`❌ Error al buscar dominio ${domain}:`, error);
+      console.error(`❌ Error al buscar dominio ${normalizedDomain}:`, error);
       throw error;
     }
 
-    // Si no se encuentra el dominio, buscar el primer dominio activo como fallback
+    // Si no se encuentra el dominio, buscar el primer dominio activo como fallback (desarrollo)
     if (!domainRecord) {
-      console.log(`⚠️  Dominio ${domain} no encontrado, usando instancia por defecto...`);
+      console.log(`⚠️  Dominio ${normalizedDomain} no encontrado, usando instancia por defecto...`);
       domainRecord = await this.prisma.domain.findFirst({
-        where: { instance: { active: true } },
+        where: { 
+          instance: { active: true },
+          isPrimary: true 
+        },
         include: { instance: true },
       });
+      
+      if (!domainRecord) {
+        // Si no hay dominio primario, usar cualquier instancia activa
+        domainRecord = await this.prisma.domain.findFirst({
+          where: { instance: { active: true } },
+          include: { instance: true },
+        });
+      }
+      
       console.log(`📊 Fallback result:`, domainRecord ? `ENCONTRADO: ${domainRecord.domain}` : 'NO ENCONTRADO');
     }
 
     if (!domainRecord) {
       throw new NotFoundException(
-        `No se encontró ninguna instancia activa. Ejecuta: pnpm db:seed`,
+        `No se encontró ninguna instancia activa. Por favor ejecuta: pnpm db:seed`,
       );
     }
 
@@ -68,13 +82,32 @@ export class TenantService {
     const tenantContext: TenantContext = {
       tenantId: domainRecord.instance.id,
       instanceSlug: domainRecord.instance.slug,
-      domain: domain,
+      domain: normalizedDomain,
     };
 
-    // Guardar en cache
-    this.domainCache.set(domain, tenantContext);
+    // Guardar en cache (usar el dominio normalizado como key)
+    this.domainCache.set(normalizedDomain, tenantContext);
 
     return tenantContext;
+  }
+
+  /**
+   * Normaliza el dominio para desarrollo
+   * Mapea dominios de GitHub Codespaces, Gitpod, etc. a 'localhost'
+   */
+  private normalizeDomain(domain: string): string {
+    // Si contiene patrones de desarrollo, usar localhost
+    if (
+      domain.includes('localhost') ||
+      domain.includes('.app.github.dev') ||
+      domain.includes('.gitpod.io') ||
+      domain.includes('.repl.co') ||
+      domain.includes('127.0.0.1')
+    ) {
+      return 'localhost';
+    }
+    
+    return domain;
   }
 
   /**

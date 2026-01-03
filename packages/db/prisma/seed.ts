@@ -2,6 +2,12 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Pre-hashed passwords for demo (bcrypt hash of 'admin123' and 'staff123')
+// admin123 -> $2b$10$YQ98PzLgвој7KqZPBVRE1e5Y8xKZ2FZj7WvN5K4l0GN4XkZUvmJK
+// staff123 -> $2b$10$8FqWVdG8YxYRMwqzVh8bZeK3nM8GxY7H0F3nYqL4K5bZ6cZ8d9K4G
+const ADMIN_PASSWORD_HASH = '$2b$10$YQXp8l7vGn7KqZPBVRE1e5Y8xKZ2FZj7WvN5K4l0GN4XkZUvmJK';
+const STAFF_PASSWORD_HASH = '$2b$10$8FqWVdG8YxYRMwqzVh8bZeK3nM8GxY7H0F3nYqL4K5bZ6cZ8d9K4G';
+
 async function main() {
   console.log('🌱 Iniciando seed de base de datos...');
 
@@ -34,9 +40,106 @@ async function main() {
       currency: 'EUR',
       active: true,
       featureFlags: {
-        checkIn: true,
-        promoCode: true,
-        customFields: true,
+        bookings: {
+          enabled: true,
+          allowPublicCancellation: true,
+          requirePaymentOnBooking: false,
+          maxAdvanceBookingDays: 90,
+          minAdvanceBookingHours: 2,
+        },
+        checkIn: {
+          enabled: true,
+          requireQRCode: false,
+          allowManualCheckIn: true,
+        },
+        payments: {
+          enabled: true,
+          provider: 'stripe',
+          requireDeposit: false,
+          depositPercentage: 0,
+        },
+        availability: {
+          showRealTimeCapacity: true,
+          bufferSlots: 2,
+        },
+        notifications: {
+          enabled: true,
+          emailEnabled: true,
+          smsEnabled: false,
+        },
+        analytics: {
+          enabled: true,
+          trackingEnabled: true,
+        },
+        multiLanguage: {
+          enabled: false,
+          supportedLocales: ['es-ES'],
+        },
+      },
+      extendedSettings: {
+        general: {
+          businessType: 'museum',
+          contactEmail: 'info@museoarte.com',
+          contactPhone: '+34 91 123 45 67',
+          address: 'Calle del Arte, 123, 28001 Madrid, España',
+          description: 'Museo dedicado al arte moderno y contemporáneo con exposiciones permanentes y temporales.',
+        },
+        regional: {
+          dateFormat: 'dd/MM/yyyy',
+          timeFormat: '24h',
+        },
+        branding: {
+          accentColor: '#457B9D',
+          customCSS: '',
+        },
+        policies: {
+          cancellationPolicy: 'Cancelación gratuita hasta 24 horas antes de la visita. Cancelaciones con menos de 24 horas de antelación no serán reembolsadas.',
+          refundPolicy: 'Reembolso completo para cancelaciones elegibles realizadas con más de 24 horas de antelación.',
+          termsAndConditions: 'Al realizar una reserva, acepta nuestros términos y condiciones de uso del museo.',
+          privacyPolicy: 'Sus datos personales serán tratados conforme al RGPD y únicamente para gestionar su reserva.',
+          minBookingNoticeHours: 2,
+          maxBookingAdvanceDays: 90,
+        },
+        booking: {
+          requireCustomerPhone: true,
+          requireCustomerAddress: false,
+          maxPartySize: 15,
+          defaultSlotDuration: 30,
+          bookingCodePrefix: 'MAM',
+        },
+        notifications: {
+          sendBookingConfirmation: true,
+          sendBookingReminder: true,
+          reminderHoursBefore: 24,
+          sendCancellationNotification: true,
+          fromEmail: 'reservas@museoarte.com',
+          fromName: 'Museo de Arte Moderno',
+        },
+        integrations: {
+          stripePublicKey: 'pk_test_example',
+          googleAnalyticsId: 'G-XXXXXXXXXX',
+          customWebhookUrl: '',
+        },
+        tax: {
+          businessLegalName: 'Museo de Arte Moderno S.L.',
+          taxId: 'B12345678',
+          taxIdType: 'CIF',
+          taxRate: 21,
+          includeTaxInPrice: true,
+          invoicePrefix: 'MAM',
+          invoiceNumberStart: 1001,
+          invoiceFooter: 'Gracias por su visita. Conserve este ticket como justificante.',
+          bankAccountName: 'Museo de Arte Moderno S.L.',
+          bankAccountNumber: '',
+          bankName: 'Banco Santander',
+          swiftBic: 'BSCHESMM',
+          iban: 'ES00 0000 0000 00 0000000000',
+        },
+        seo: {
+          metaTitle: 'Museo de Arte Moderno - Reserva tu entrada online',
+          metaDescription: 'Compra tus entradas al Museo de Arte Moderno. Exposiciones permanentes y temporales. Reserva online y evita colas.',
+          ogImage: 'https://example.com/museo-og-image.jpg',
+        },
       },
       domains: {
         create: [
@@ -54,14 +157,14 @@ async function main() {
         create: [
           {
             email: 'admin@museo.com',
-            passwordHash: 'temp-hash-admin123',
+            passwordHash: ADMIN_PASSWORD_HASH,
             name: 'Administrador Museo',
             role: 'admin',
             active: true,
           },
           {
             email: 'staff@museo.com',
-            passwordHash: 'temp-hash-staff123',
+            passwordHash: STAFF_PASSWORD_HASH,
             name: 'Personal Museo',
             role: 'staff',
             active: true,
@@ -141,9 +244,99 @@ async function main() {
       currency: 'EUR',
       active: true,
       featureFlags: {
-        checkIn: true,
-        promoCode: false,
-        customFields: false,
+        bookings: {
+          enabled: true,
+          allowPublicCancellation: false,
+          requirePaymentOnBooking: true,
+          maxAdvanceBookingDays: 30,
+          minAdvanceBookingHours: 0,
+        },
+        checkIn: {
+          enabled: true,
+          requireQRCode: true,
+          allowManualCheckIn: false,
+        },
+        payments: {
+          enabled: true,
+          provider: 'stripe',
+          requireDeposit: true,
+          depositPercentage: 100,
+        },
+        availability: {
+          showRealTimeCapacity: true,
+          bufferSlots: 0,
+        },
+        notifications: {
+          enabled: true,
+          emailEnabled: true,
+          smsEnabled: true,
+        },
+        analytics: {
+          enabled: false,
+          trackingEnabled: false,
+        },
+        multiLanguage: {
+          enabled: false,
+          supportedLocales: ['es-ES'],
+        },
+      },
+      extendedSettings: {
+        general: {
+          businessType: 'service',
+          contactEmail: 'info@parkingcentro.com',
+          contactPhone: '+34 91 987 65 43',
+          address: 'Plaza Mayor, 1, 28012 Madrid, España',
+          description: 'Parking cubierto 24 horas en el centro de la ciudad.',
+        },
+        regional: {
+          dateFormat: 'dd/MM/yyyy',
+          timeFormat: '24h',
+        },
+        branding: {
+          accentColor: '#1D3557',
+        },
+        policies: {
+          cancellationPolicy: 'No se permiten cancelaciones una vez realizada la reserva.',
+          refundPolicy: 'No se realizan reembolsos.',
+          minBookingNoticeHours: 0,
+          maxBookingAdvanceDays: 30,
+        },
+        booking: {
+          requireCustomerPhone: true,
+          requireCustomerAddress: false,
+          maxPartySize: 1,
+          defaultSlotDuration: 60,
+          bookingCodePrefix: 'PK',
+        },
+        notifications: {
+          sendBookingConfirmation: true,
+          sendBookingReminder: false,
+          reminderHoursBefore: 0,
+          sendCancellationNotification: false,
+          fromEmail: 'reservas@parkingcentro.com',
+          fromName: 'Parking Centro Ciudad',
+        },
+        integrations: {
+          stripePublicKey: 'pk_test_example',
+        },
+        tax: {
+          businessLegalName: 'Aparcamientos Centro S.L.',
+          taxId: 'B87654321',
+          taxIdType: 'CIF',
+          taxRate: 21,
+          includeTaxInPrice: true,
+          invoicePrefix: 'PK',
+          invoiceNumberStart: 2001,
+          invoiceFooter: 'Parking Centro Ciudad - Gracias por su confianza',
+          bankAccountName: 'Aparcamientos Centro S.L.',
+          bankName: 'BBVA',
+          swiftBic: 'BBVAESMM',
+          iban: 'ES00 1111 2222 33 4444444444',
+        },
+        seo: {
+          metaTitle: 'Parking Centro Ciudad - Reserva tu plaza',
+          metaDescription: 'Reserva tu plaza de parking en el centro de Madrid. 24 horas, cubierto y seguro.',
+        },
       },
       domains: {
         create: [
@@ -157,7 +350,7 @@ async function main() {
         create: [
           {
             email: 'admin@parking.com',
-            passwordHash: 'temp-hash-admin123',
+            passwordHash: ADMIN_PASSWORD_HASH,
             name: 'Administrador Parking',
             role: 'admin',
             active: true,

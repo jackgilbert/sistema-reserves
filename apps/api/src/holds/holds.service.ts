@@ -18,26 +18,27 @@ export class HoldsService {
     customerData: { email?: string; name?: string; phone?: string },
     tenant: TenantContext,
   ) {
-    // Verificar que la offering existe y está activa
-    const offering = await this.prisma.offering.findFirst({
-      where: {
-        tenantId: tenant.tenantId,
-        id: offeringId,
-        active: true,
-      },
-    });
+    try {
+      // Verificar que la offering existe y está activa
+      const offering = await this.prisma.offering.findFirst({
+        where: {
+          tenantId: tenant.tenantId,
+          id: offeringId,
+          active: true,
+        },
+      });
 
-    if (!offering) {
-      throw new NotFoundException('Offering no encontrada o inactiva');
-    }
+      if (!offering) {
+        throw new NotFoundException('Offering no encontrada o inactiva');
+      }
 
-    // Calcular precio
-    const price = offering.basePrice;
-    const totalPrice = price * quantity;
+      // Calcular precio
+      const price = offering.basePrice;
+      const totalPrice = price * quantity;
 
-    // Usar transacción para garantizar consistencia
-    const hold = await this.prisma.$transaction(async (tx) => {
-      // 1. Buscar o crear inventory bucket
+      // Usar transacción para garantizar consistencia
+      const hold = await this.prisma.$transaction(async (tx) => {
+        // 1. Buscar o crear inventory bucket
       let bucket = await tx.inventoryBucket.findUnique({
         where: {
           tenantId_offeringId_slotStart: {
@@ -120,15 +121,22 @@ export class HoldsService {
       return newHold;
     });
 
-    return {
-      id: hold.id,
-      offeringId: hold.offeringId,
-      slotStart: hold.slotStart.toISOString(),
-      slotEnd: hold.slotEnd.toISOString(),
-      quantity: hold.quantity,
-      expiresAt: hold.expiresAt.toISOString(),
-      price: totalPrice,
-    };
+      return {
+        id: hold.id,
+        offeringId: hold.offeringId,
+        slotStart: hold.slotStart.toISOString(),
+        slotEnd: hold.slotEnd.toISOString(),
+        quantity: hold.quantity,
+        expiresAt: hold.expiresAt.toISOString(),
+        price: totalPrice,
+      };
+    } catch (error) {
+      console.error('Error in createHold:', error);
+      if (error instanceof NotFoundException || error instanceof ConflictException) {
+        throw error;
+      }
+      throw new Error(`Failed to create hold: ${error.message}`);
+    }
   }
 
   /**

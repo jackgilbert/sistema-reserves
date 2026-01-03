@@ -11,6 +11,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { CheckInModule } from './checkin/checkin.module';
 import { PaymentsModule } from './payments/payments.module';
 import { TasksModule } from './tasks/tasks.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { TasksModule } from './tasks/tasks.module';
     PaymentsModule,
     CheckInModule,
     TasksModule,
+    SettingsModule,
   ],
 })
 export class AppModule implements NestModule {

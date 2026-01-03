@@ -1,15 +1,40 @@
 import { Controller, Post, Get, Body, Param, Headers } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiProperty } from '@nestjs/swagger';
+import { IsString, IsDateString, IsInt, Min, IsOptional, IsEmail } from 'class-validator';
 import { HoldsService } from './holds.service';
 import { TenantService } from '../tenant/tenant.service';
 
 class CreateHoldDto {
+  @ApiProperty({ description: 'ID de la oferta' })
+  @IsString()
   offeringId: string;
-  slotStart: Date;
-  slotEnd: Date;
+
+  @ApiProperty({ description: 'Inicio del slot (ISO 8601)', example: '2024-01-15T10:00:00.000Z' })
+  @IsDateString()
+  slotStart: string;
+
+  @ApiProperty({ description: 'Fin del slot (ISO 8601)', example: '2024-01-15T11:00:00.000Z' })
+  @IsDateString()
+  slotEnd: string;
+
+  @ApiProperty({ description: 'Cantidad a reservar', minimum: 1 })
+  @IsInt()
+  @Min(1)
   quantity: number;
+
+  @ApiProperty({ description: 'Email del cliente', required: false })
+  @IsOptional()
+  @IsEmail()
   email?: string;
+
+  @ApiProperty({ description: 'Nombre del cliente', required: false })
+  @IsOptional()
+  @IsString()
   name?: string;
+
+  @ApiProperty({ description: 'Teléfono del cliente', required: false })
+  @IsOptional()
+  @IsString()
   phone?: string;
 }
 
@@ -31,15 +56,20 @@ export class HoldsController {
     @Body() dto: CreateHoldDto,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
-    return this.holdsService.createHold(
-      dto.offeringId,
-      new Date(dto.slotStart),
-      new Date(dto.slotEnd),
-      dto.quantity,
-      { email: dto.email, name: dto.name, phone: dto.phone },
-      tenant,
-    );
+    try {
+      const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+      return await this.holdsService.createHold(
+        dto.offeringId,
+        new Date(dto.slotStart),
+        new Date(dto.slotEnd),
+        dto.quantity,
+        { email: dto.email, name: dto.name, phone: dto.phone },
+        tenant,
+      );
+    } catch (error) {
+      console.error('Error creating hold:', error);
+      throw error;
+    }
   }
 
   @Get(':id')
