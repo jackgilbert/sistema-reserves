@@ -121,6 +121,8 @@ export class OfferingsService {
    * Obtener una offering por ID
    */
   async findOne(id: string, tenant: TenantContext): Promise<unknown> {
+    console.log(`🔍 [OfferingsService] Buscando offering:`, { id, tenantId: tenant.tenantId });
+    
     const offering = await this.prisma.offering.findFirst({
       where: {
         tenantId: tenant.tenantId,
@@ -134,7 +136,15 @@ export class OfferingsService {
       },
     });
 
+    console.log(`📊 [OfferingsService] Resultado:`, offering ? 'ENCONTRADO' : 'NO ENCONTRADO');
+
     if (!offering) {
+      // Log all offerings for this tenant to help debug
+      const allOfferings = await this.prisma.offering.findMany({
+        where: { tenantId: tenant.tenantId },
+        select: { id: true, slug: true, name: true },
+      });
+      console.log(`📋 [OfferingsService] Offerings disponibles para tenant ${tenant.tenantId}:`, allOfferings);
       throw new NotFoundException('Offering no encontrada');
     }
 

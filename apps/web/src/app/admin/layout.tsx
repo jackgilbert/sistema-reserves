@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 export default function AdminLayout({
@@ -10,10 +10,19 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Si estamos en la página de login, no verificar autenticación
+  const isLoginPage = pathname === '/admin/login';
+
   useEffect(() => {
+    if (isLoginPage) {
+      setLoading(false);
+      return;
+    }
+
     // Verificar autenticación
     const token = localStorage.getItem('accessToken');
     const userData = localStorage.getItem('user');
@@ -25,13 +34,18 @@ export default function AdminLayout({
 
     setUser(JSON.parse(userData));
     setLoading(false);
-  }, [router]);
+  }, [router, isLoginPage]);
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
     router.push('/admin/login');
   };
+
+  // Si estamos en la página de login, mostrar solo el contenido sin el layout
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
@@ -65,6 +79,12 @@ export default function AdminLayout({
                 className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300"
               >
                 Check-in
+              </Link>
+              <Link
+                href="/admin/settings"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300"
+              >
+                Configuración
               </Link>
               {user?.role === 'SUPER_ADMIN' && (
                 <Link

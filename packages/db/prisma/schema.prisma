@@ -35,6 +35,9 @@ model Instance {
   // Feature flags (JSON)
   featureFlags Json @default("{}")
 
+  // Extended settings (JSON) - para configuraciones adicionales como tax, notifications, etc.
+  extendedSettings Json @default("{}")
+
   // Relaciones
   domains             Domain[]
   users               User[]

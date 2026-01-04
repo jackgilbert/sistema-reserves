@@ -102,6 +102,29 @@ export const api = {
         method: 'POST',
       }),
   },
+
+  settings: {
+    get: () => fetchApi<any>('/settings'),
+    update: (data: any) =>
+      fetchApi<any>('/settings', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    getPublic: () => fetchApi<any>('/settings/public'),
+  },
+
+  features: {
+    get: () => fetchApi<any>('/settings/features'),
+    update: (data: any) =>
+      fetchApi<any>('/settings/features', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    reset: () =>
+      fetchApi<any>('/settings/features/reset', {
+        method: 'PATCH',
+      }),
+  },
 };
 
 // Tipos

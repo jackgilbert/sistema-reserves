@@ -17,10 +17,10 @@ interface Offering {
     endTime: string;
     slotDuration: number;
   }>;
-  variants: Array<{
-    id: string;
+  priceVariants?: Array<{
     name: string;
     price: number;
+    description?: string;
   }>;
 }
 
@@ -179,12 +179,12 @@ export default function AdminOfferingsPage() {
                   </div>
                 )}
 
-                {offering.variants.length > 0 && (
+                {offering.priceVariants && offering.priceVariants.length > 0 && (
                   <div className="text-sm">
                     <span className="text-gray-500">Variantes:</span>
                     <div className="mt-1 space-y-1">
-                      {offering.variants.map((variant) => (
-                        <div key={variant.id} className="flex justify-between text-xs">
+                      {offering.priceVariants.map((variant, idx) => (
+                        <div key={idx} className="flex justify-between text-xs">
                           <span>{variant.name}</span>
                           <span className="font-medium">
                             {formatCurrency(variant.price)}
