@@ -1,4 +1,4 @@
-import { IsString, IsObject, IsOptional, IsEnum } from 'class-validator';
+import { IsObject, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ApplyTemplateDto {

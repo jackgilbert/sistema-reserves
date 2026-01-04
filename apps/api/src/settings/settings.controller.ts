@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Patch, Body, Headers, UseGuards, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Body, Headers, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { TenantService } from '../tenant/tenant.service';
 import { UpdateFeatureFlagsDto } from './dto/update-feature-flags.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
-import { ApplyTemplateDto, ExportSettingsDto, ImportSettingsDto, ValidateSettingsDto } from './dto/template-operations.dto';
+import { ApplyTemplateDto, ImportSettingsDto, ValidateSettingsDto } from './dto/template-operations.dto';
 import { FeatureFlags, TenantSettings } from './settings.types';
 
 @ApiTags('Settings')
