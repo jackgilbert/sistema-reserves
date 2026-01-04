@@ -1,14 +1,14 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// Pre-hashed passwords for demo (bcrypt hash of 'admin123' and 'staff123')
-// admin123 -> $2b$10$YQ98PzLgвој7KqZPBVRE1e5Y8xKZ2FZj7WvN5K4l0GN4XkZUvmJK
-// staff123 -> $2b$10$8FqWVdG8YxYRMwqzVh8bZeK3nM8GxY7H0F3nYqL4K5bZ6cZ8d9K4G
-const ADMIN_PASSWORD_HASH = '$2b$10$YQXp8l7vGn7KqZPBVRE1e5Y8xKZ2FZj7WvN5K4l0GN4XkZUvmJK';
-const STAFF_PASSWORD_HASH = '$2b$10$8FqWVdG8YxYRMwqzVh8bZeK3nM8GxY7H0F3nYqL4K5bZ6cZ8d9K4G';
-
 async function main() {
+  // Hash passwords on the fly
+  console.log('🔐 Generando hashes de contraseñas...');
+  const ADMIN_PASSWORD_HASH = await bcrypt.hash('admin123', 10);
+  const STAFF_PASSWORD_HASH = await bcrypt.hash('staff123', 10);
+
   console.log('🌱 Iniciando seed de base de datos...');
 
   // Limpiar datos existentes
