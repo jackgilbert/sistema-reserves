@@ -33,7 +33,6 @@ export async function fetchApi<T>(
   // Obtener el dominio actual para el header de tenant
   const domain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
-  console.log(`[API] Fetching ${url} with domain: ${domain} (isServer: ${typeof window === 'undefined'})`);
 
   const response = await fetch(url, {
     ...fetchOptions,

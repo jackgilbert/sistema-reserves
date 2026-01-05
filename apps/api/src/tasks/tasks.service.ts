@@ -1,18 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { HoldsService } from '../holds/holds.service';
 
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
+  private readonly cronEnabled = process.env.ENABLE_CRON !== 'false';
 
-  constructor(private readonly holdsService: HoldsService) {}
+  constructor(private readonly holdsService: HoldsService) {
+    if (!this.cronEnabled) {
+      this.logger.warn('⚠️  Cron jobs deshabilitados (ENABLE_CRON=false)');
+    }
+  }
 
   /**
-   * Liberar holds expirados cada 5 minutos
+   * Liberar holds expirados cada 15 minutos
    */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron('*/15 * * * *')
   async releaseExpiredHolds() {
+    if (!this.cronEnabled) return;
+    
     this.logger.log('Iniciando liberación de holds expirados...');
     
     try {
@@ -34,6 +41,8 @@ export class TasksService {
    */
   @Cron('0 3 * * *')
   async cleanOldCheckInEvents() {
+    if (!this.cronEnabled) return;
+    
     this.logger.log('Limpiando eventos de check-in antiguos...');
     
     // TODO: Implementar limpieza de eventos antiguos
@@ -46,6 +55,8 @@ export class TasksService {
    */
   @Cron('0 1 * * *')
   async generateDailyReports() {
+    if (!this.cronEnabled) return;
+    
     this.logger.log('Generando reportes diarios...');
     
     // TODO: Implementar generación de reportes

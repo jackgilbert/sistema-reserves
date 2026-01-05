@@ -154,12 +154,14 @@ export class HoldsService {
 
   /**
    * Liberar holds expirados y devolver inventario
-   * Llamado por cron job cada 5 minutos
+   * Llamado por cron job cada 15 minutos
+   * Optimizado para procesar en lotes y evitar transacciones largas
    */
   async releaseExpiredHolds() {
     const now = new Date();
+    const BATCH_SIZE = 50; // Procesar máximo 50 holds por ejecución
 
-    // Buscar holds expirados no liberados
+    // Buscar holds expirados no liberados (limitado)
     const expiredHolds = await this.prisma.hold.findMany({
       where: {
         released: false,
@@ -167,43 +169,74 @@ export class HoldsService {
           lt: now,
         },
       },
+      take: BATCH_SIZE,
+      orderBy: {
+        expiresAt: 'asc', // Los más antiguos primero
+      },
     });
 
     if (expiredHolds.length === 0) {
       return { released: 0 };
     }
 
-    // Liberar en transacción
-    await this.prisma.$transaction(async (tx) => {
-      for (const hold of expiredHolds) {
-        // Devolver capacidad al bucket
-        await tx.inventoryBucket.update({
-          where: {
-            tenantId_offeringId_slotStart: {
-              tenantId: hold.tenantId,
-              offeringId: hold.offeringId,
-              slotStart: hold.slotStart,
-            },
-          },
-          data: {
-            heldCapacity: {
-              decrement: hold.quantity,
-            },
-          },
-        });
+    // Agrupar por bucket para actualizar en batch
+    const bucketUpdates = new Map<string, number>();
+    const holdIds: string[] = [];
 
-        // Marcar hold como liberado
-        await tx.hold.update({
-          where: {
-            id: hold.id,
-          },
-          data: {
-            released: true,
-          },
-        });
-      }
-    });
+    for (const hold of expiredHolds) {
+      const bucketKey = `${hold.tenantId}:${hold.offeringId}:${hold.slotStart.toISOString()}`;
+      bucketUpdates.set(bucketKey, (bucketUpdates.get(bucketKey) || 0) + hold.quantity);
+      holdIds.push(hold.id);
+    }
 
-    return { released: expiredHolds.length };
+    // Ejecutar en transacción optimizada
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          // Marcar todos los holds como liberados en una sola operación
+          await tx.hold.updateMany({
+            where: {
+              id: {
+                in: holdIds,
+              },
+            },
+            data: {
+              released: true,
+            },
+          });
+
+          // Actualizar buckets de inventario
+          for (const [bucketKey, totalQuantity] of bucketUpdates.entries()) {
+            const [tenantId, offeringId, slotStartStr] = bucketKey.split(':');
+            const slotStart = new Date(slotStartStr);
+
+            await tx.inventoryBucket.update({
+              where: {
+                tenantId_offeringId_slotStart: {
+                  tenantId,
+                  offeringId,
+                  slotStart,
+                },
+              },
+              data: {
+                heldCapacity: {
+                  decrement: totalQuantity,
+                },
+              },
+            });
+          }
+        },
+        {
+          maxWait: 5000, // Esperar máximo 5 segundos para adquirir el lock
+          timeout: 10000, // Timeout de 10 segundos para la transacción
+        },
+      );
+
+      return { released: expiredHolds.length };
+    } catch (error) {
+      // Si falla, no lanzar error para que el cron pueda continuar
+      console.error('Error al liberar holds expirados:', error);
+      return { released: 0, error: error.message };
+    }
   }
 }

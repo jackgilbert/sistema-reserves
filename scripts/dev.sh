@@ -31,6 +31,7 @@ cd apps/api
 export DATABASE_URL="postgresql://reservas:reservas123@localhost:5432/sistema_reservas"
 export JWT_SECRET="tu-secreto-jwt-super-seguro"
 export PORT=3001
+export ENABLE_CRON=false  # Deshabilitar cron jobs en desarrollo
 pnpm dev &
 API_PID=$!
 cd ../..
@@ -42,6 +43,7 @@ sleep 3
 echo "🌐 Iniciando Frontend (puerto 3000)..."
 cd apps/web
 export NEXT_PUBLIC_API_URL=http://localhost:3001
+export PORT=3000
 pnpm dev &
 WEB_PID=$!
 cd ../..
