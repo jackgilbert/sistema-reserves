@@ -1,9 +1,13 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Iniciando seed de base de datos...');
+
+  const adminPasswordHash = await bcrypt.hash('admin123', 10);
+  const staffPasswordHash = await bcrypt.hash('staff123', 10);
 
   // Limpiar datos existentes
   console.log('🧹 Limpiando datos existentes...');
@@ -54,16 +58,16 @@ async function main() {
         create: [
           {
             email: 'admin@museo.com',
-            passwordHash: 'temp-hash-admin123',
+            passwordHash: adminPasswordHash,
             name: 'Administrador Museo',
-            role: 'admin',
+            role: 'ADMIN',
             active: true,
           },
           {
             email: 'staff@museo.com',
-            passwordHash: 'temp-hash-staff123',
+            passwordHash: staffPasswordHash,
             name: 'Personal Museo',
-            role: 'staff',
+            role: 'STAFF',
             active: true,
           },
         ],
@@ -116,7 +120,7 @@ async function main() {
           endTime: '18:00',
           slotDuration: 30, // franjas de 30 minutos
           validFrom: new Date('2024-01-01'),
-          validTo: new Date('2025-12-31'),
+          validTo: new Date('2027-12-31'),
           minAdvanceMinutes: 60, // mínimo 1 hora de antelación
           maxAdvanceDays: 60, // máximo 60 días de antelación
           cutoffMinutes: 15, // cerrar reservas 15 minutos antes
@@ -157,9 +161,9 @@ async function main() {
         create: [
           {
             email: 'admin@parking.com',
-            passwordHash: 'temp-hash-admin123',
+            passwordHash: adminPasswordHash,
             name: 'Administrador Parking',
-            role: 'admin',
+            role: 'ADMIN',
             active: true,
           },
         ],
@@ -217,7 +221,7 @@ async function main() {
           endTime: '23:59',
           slotDuration: 60, // franjas de 1 hora
           validFrom: new Date('2024-01-01'),
-          validTo: new Date('2025-12-31'),
+          validTo: new Date('2027-12-31'),
           minAdvanceMinutes: 0, // sin antelación mínima
           maxAdvanceDays: 30,
           cutoffMinutes: 0,
