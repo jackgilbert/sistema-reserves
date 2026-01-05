@@ -4,7 +4,9 @@ const API_BASE = process.env.API_URL || 'http://localhost:3001';
 
 function buildTargetUrl(req: NextRequest, pathParts: string[]) {
   const target = new URL(API_BASE);
-  const joinedPath = '/' + pathParts.map(encodeURIComponent).join('/');
+  // The pathParts come from /api/[...path], so /api/v1/offerings becomes ['v1', 'offerings']
+  // We need to add /api prefix to forward to the backend at /api/v1/...
+  const joinedPath = '/api/' + pathParts.map(encodeURIComponent).join('/');
   target.pathname = joinedPath;
   target.search = req.nextUrl.search;
   return target;
