@@ -7,8 +7,27 @@ function getApiUrl(): string {
   if (typeof window === 'undefined') {
     return process.env.API_URL || 'http://localhost:3001';
   }
+
   // Si estamos en el cliente (browser)
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // 1) Respeta variable explícita si existe
+  const explicit = process.env.NEXT_PUBLIC_API_URL;
+  if (explicit) return explicit;
+
+  // 2) Derivar automáticamente en devcontainers/Codespaces para evitar mixed content.
+  //    Ej: https://xxxx-3000.app.github.dev -> https://xxxx-3001.app.github.dev
+  const { protocol, hostname, port } = window.location;
+
+  if (hostname.includes('-3000.')) {
+    return `${protocol}//${hostname.replace('-3000.', '-3001.')}`;
+  }
+
+  // 3) Local clásico: http://localhost:3000 -> http://localhost:3001
+  if (port === '3000') {
+    return `${protocol}//${hostname}:3001`;
+  }
+
+  // 4) Fallback
+  return 'http://localhost:3001';
 }
 
 interface FetchOptions extends RequestInit {
