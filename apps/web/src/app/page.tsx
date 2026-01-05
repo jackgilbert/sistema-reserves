@@ -18,12 +18,22 @@ export default async function HomePage() {
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Sistema de Reservas
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Selecciona una experiencia para reservar
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Sistema de Reservas
+              </h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Selecciona una experiencia para reservar
+              </p>
+            </div>
+            <Link
+              href="/admin/login"
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Administrar
+            </Link>
+          </div>
         </div>
       </header>
 
