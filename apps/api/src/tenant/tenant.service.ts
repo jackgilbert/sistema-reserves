@@ -42,6 +42,10 @@ export class TenantService {
       domainRecord = await this.prisma.domain.findFirst({
         where: { instance: { active: true } },
         include: { instance: true },
+        orderBy: [
+          { isPrimary: 'desc' },
+          { domain: 'asc' },
+        ],
       });
     }
 

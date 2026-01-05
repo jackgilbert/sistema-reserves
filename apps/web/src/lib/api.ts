@@ -41,7 +41,18 @@ export async function fetchApi<T>(
   }
 
   // Obtener el dominio actual para el header de tenant
-  const domain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  let domain: string;
+  if (typeof window !== 'undefined') {
+    domain = window.location.hostname;
+  } else {
+    domain = 'localhost';
+    try {
+      const { getServerTenantDomain } = await import('./serverTenant');
+      domain = getServerTenantDomain();
+    } catch {
+      // Ignorar: en runtime no-Next, usar 'localhost'
+    }
+  }
 
 
   const response = await fetch(url, {
