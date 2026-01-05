@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { addMinutes } from 'date-fns';
@@ -6,6 +6,8 @@ import { HOLD_EXPIRATION_MINUTES, HOLD_CLEANUP_BATCH_SIZE, HOLD_CLEANUP_MAX_WAIT
 
 @Injectable()
 export class HoldsService {
+  private readonly logger = new Logger(HoldsService.name);
+  
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
@@ -235,8 +237,8 @@ export class HoldsService {
 
       return { released: expiredHolds.length };
     } catch (error) {
-      // Si falla, no lanzar error para que el cron pueda continuar
-      console.error('Error al liberar holds expirados:', error);
+      // Log error but don't throw to allow cron to continue
+      this.logger.error('Failed to release expired holds', error.stack || error);
       return { released: 0, error: error.message };
     }
   }
