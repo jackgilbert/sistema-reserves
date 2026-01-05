@@ -59,7 +59,7 @@ export async function fetchApi<T>(
     domain = 'localhost';
     try {
       const { getServerTenantDomain } = await import('./serverTenant');
-      domain = getServerTenantDomain();
+      domain = await getServerTenantDomain();
     } catch {
       // Ignorar: en runtime no-Next, usar 'localhost'
     }
