@@ -3,6 +3,7 @@ import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { customAlphabet } from 'nanoid';
 import { BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH } from '../common/constants';
+import { BookingRepository } from '../common/repositories/booking.repository';
 
 const nanoid = customAlphabet(BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH);
 
@@ -17,7 +18,10 @@ export interface CreateBookingFromHoldDto {
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
   
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly bookingRepository: BookingRepository,
+  ) {}
 
   /**
    * Generar código único para la reserva
@@ -169,66 +173,23 @@ export class BookingsService {
    * Listar todas las reservas del tenant
    */
   async findAll(tenant: TenantContext): Promise<unknown[]> {
-    const bookings = await this.prisma.booking.findMany({
-      where: {
-        tenantId: tenant.tenantId,
-      },
-      include: {
-        offering: {
-          select: {
-            name: true,
-            type: true,
-          },
-        },
-        items: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    return bookings;
+    return this.bookingRepository.findAll(tenant);
   }
 
   /**
    * Obtener una reserva por código
    */
   async findByCode(code: string, tenant: TenantContext): Promise<unknown> {
-    const booking = await this.prisma.booking.findFirst({
-      where: {
-        tenantId: tenant.tenantId,
-        code,
-      },
-      include: {
-        offering: true,
-        items: true,
-      },
-    });
-
-    if (!booking) {
-      throw new NotFoundException('Reserva no encontrada');
-    }
-
-    return booking;
+    return this.bookingRepository.findByCodeOrFail(code, tenant);
   }
 
   /**
    * Cancelar una reserva
    */
   async cancel(bookingId: string, tenant: TenantContext) {
-    const booking = await this.prisma.booking.findFirst({
-      where: {
-        tenantId: tenant.tenantId,
-        id: bookingId,
-      },
-      include: {
-        items: true,
-      },
+    const booking = await this.bookingRepository.findByIdOrFail(bookingId, tenant, {
+      items: true,
     });
-
-    if (!booking) {
-      throw new NotFoundException('Reserva no encontrada');
-    }
 
     if (booking.status === 'CANCELLED') {
       throw new BadRequestException('La reserva ya está cancelada');

@@ -7,7 +7,7 @@ import { PrismaClient } from '@sistema-reservas/db';
 @Module({
   imports: [TenantModule],
   controllers: [CheckinController],
-  providers: [CheckinService, PrismaClient],
+  providers: [CheckinService, PrismaClient, BookingRepository],
   exports: [CheckinService],
 })
 export class CheckInModule {}
