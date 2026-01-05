@@ -42,8 +42,14 @@ sleep 3
 # Iniciar Frontend
 echo "🌐 Iniciando Frontend (puerto 3000)..."
 cd apps/web
-export NEXT_PUBLIC_API_URL=http://localhost:3001
 export PORT=3000
+
+# En local, es útil fijar la URL de la API.
+# En Codespaces/port-forwarding (HTTPS), forzar http://localhost rompe (mixed content / localhost no resolvible).
+if [ -z "$CODESPACES" ] && [ -z "$CODESPACE_NAME" ] && [ -z "$GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN" ]; then
+    export NEXT_PUBLIC_API_URL=http://localhost:3001
+fi
+
 pnpm dev &
 WEB_PID=$!
 cd ../..
