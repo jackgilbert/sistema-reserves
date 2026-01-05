@@ -37,7 +37,7 @@ export default function AdminOfferingsPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/offerings?activeOnly=false`,
+        '/api/offerings?activeOnly=false',
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -60,7 +60,7 @@ export default function AdminOfferingsPage() {
   const toggleActive = async (id: string, currentState: boolean) => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/offerings/${id}`, {
+      const response = await fetch(`/api/offerings/${id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

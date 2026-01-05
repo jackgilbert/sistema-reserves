@@ -16,7 +16,7 @@ export default function AdminCheckinPage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/checkin`, {
+      const response = await fetch('/api/checkin', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -51,7 +51,7 @@ export default function AdminCheckinPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/checkin/verify/${code}`,
+        `/api/checkin/verify/${code}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

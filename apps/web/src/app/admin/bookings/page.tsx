@@ -31,7 +31,7 @@ export default function AdminBookingsPage() {
   const fetchBookings = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bookings`, {
+      const response = await fetch('/api/bookings', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'x-tenant-domain': window.location.hostname,
