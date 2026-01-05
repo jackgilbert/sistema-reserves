@@ -41,6 +41,10 @@ export class CheckinService {
       },
     });
 
+    if (!bookingWithEvents) {
+      throw new NotFoundException('Booking data not found');
+    }
+
     // Verificar estado
     if (bookingWithEvents.status === 'CANCELLED') {
       throw new BadRequestException('Esta reserva está cancelada');
@@ -126,6 +130,10 @@ export class CheckinService {
         checkInEvents: true,
       },
     });
+
+    if (!bookingWithEvents) {
+      throw new NotFoundException('Booking data not found');
+    }
 
     return {
       code: bookingWithEvents.code,
