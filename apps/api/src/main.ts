@@ -23,25 +23,40 @@ async function bootstrap() {
   // En desarrollo, permitir orígenes típicos (localhost/127.0.0.1 y URLs de ports-forwarding).
   // En producción, restringir a orígenes conocidos.
   const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Define allowed origin patterns
+  const allowedOriginPatterns: RegExp[] = [
+    /^https?:\/\/localhost(?::\d+)?$/,
+    /^https?:\/\/127\.0\.0\.1(?::\d+)?$/,
+  ];
+  
+  // Add dev/preview patterns only in non-production
+  if (!isProduction) {
+    allowedOriginPatterns.push(
+      /^https?:\/\/.*\.app\.github\.dev(?::\d+)?$/,
+      /^https?:\/\/.*\.githubpreview\.dev(?::\d+)?$/,
+      /^https?:\/\/.*\.github\.dev(?::\d+)?$/,
+    );
+  }
+  
   app.enableCors({
     origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, Postman)
       if (!origin) return callback(null, true);
 
-      if (!isProduction) {
-        return callback(null, true);
+      // Validate origin format to prevent header injection
+      if (typeof origin !== 'string' || origin.length > 2048) {
+        return callback(new Error('Invalid origin format'));
       }
 
-      // Producción: permitir únicamente orígenes explícitamente aceptados.
-      const allowedOriginPatterns: RegExp[] = [
-        /^https?:\/\/localhost(?::\d+)?$/,
-        /^https?:\/\/127\.0\.0\.1(?::\d+)?$/,
-        /^https?:\/\/.*\.app\.github\.dev(?::\d+)?$/,
-        /^https?:\/\/.*\.githubpreview\.dev(?::\d+)?$/,
-        /^https?:\/\/.*\.github\.dev(?::\d+)?$/,
-      ];
-
+      // Check if origin matches any allowed pattern
       const allowed = allowedOriginPatterns.some((pattern) => pattern.test(origin));
-      return allowed ? callback(null, true) : callback(new Error('Not allowed by CORS'));
+      
+      if (allowed) {
+        return callback(null, true);
+      }
+      
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
     },
     credentials: true,
   });
