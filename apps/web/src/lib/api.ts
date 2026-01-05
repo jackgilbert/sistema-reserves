@@ -9,41 +9,10 @@ function getApiUrl(): string {
   }
 
   // Si estamos en el cliente (browser)
-  // 1) Respeta variable explícita si existe
-  const explicit = process.env.NEXT_PUBLIC_API_URL;
-  //    Pero evita valores que suelen romper en HTTPS (mixed content) o fuera de local.
-  if (explicit) {
-    const isHttps = window.location.protocol === 'https:';
-    const isExplicitHttp = explicit.startsWith('http://');
-    const isExplicitLocalhost = explicit.includes('localhost') || explicit.includes('127.0.0.1');
-    const isBrowsingLocalhost =
-      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-    if (!(isHttps && isExplicitHttp && isExplicitLocalhost && !isBrowsingLocalhost)) {
-      return explicit;
-    }
-  }
-
-  // 2) Derivar automáticamente en devcontainers/Codespaces para evitar mixed content.
-  //    Ej: https://xxxx-3000.app.github.dev -> https://xxxx-3001.app.github.dev
-  const { protocol, hostname, port } = window.location;
-
-  // Formato con puerto como prefijo: https://3000-xxxx.app.github.dev -> https://3001-xxxx.app.github.dev
-  if (/^3000-/.test(hostname)) {
-    return `${protocol}//${hostname.replace(/^3000-/, '3001-')}`;
-  }
-
-  if (hostname.includes('-3000.')) {
-    return `${protocol}//${hostname.replace('-3000.', '-3001.')}`;
-  }
-
-  // 3) Local clásico: http://localhost:3000 -> http://localhost:3001
-  if (port === '3000') {
-    return `${protocol}//${hostname}:3001`;
-  }
-
-  // 4) Fallback
-  return 'http://localhost:3001';
+  // En el navegador, preferimos usar un proxy same-origin (/api/...)
+  // para no depender de que el puerto 3001 sea público (Codespaces/port-forwarding)
+  // y para evitar problemas de mixed content.
+  return '';
 }
 
 interface FetchOptions extends RequestInit {
@@ -57,9 +26,15 @@ export async function fetchApi<T>(
   const { params, ...fetchOptions } = options;
   
   const API_URL = getApiUrl();
+
+  // En cliente, enrutar via proxy Next: /api/<endpoint>
+  const isBrowser = typeof window !== 'undefined';
+  const proxiedEndpoint = isBrowser && !endpoint.startsWith('/api')
+    ? `/api${endpoint}`
+    : endpoint;
   
   // Construir URL con parámetros
-  let url = `${API_URL}${endpoint}`;
+  let url = `${API_URL}${proxiedEndpoint}`;
   if (params) {
     const searchParams = new URLSearchParams(params);
     url += `?${searchParams.toString()}`;
