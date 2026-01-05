@@ -10,6 +10,11 @@ async function bootstrap() {
   }
   const app = await NestFactory.create(AppModule);
 
+  // API versioning
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health'], // Exclude health check from versioning
+  });
+
   // Validación global
   app.useGlobalPipes(
     new ValidationPipe({
