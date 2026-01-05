@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { addMinutes } from 'date-fns';
+import { HOLD_EXPIRATION_MINUTES, HOLD_CLEANUP_BATCH_SIZE, HOLD_CLEANUP_MAX_WAIT_MS, HOLD_CLEANUP_TIMEOUT_MS } from '../common/constants';
 
 @Injectable()
 export class HoldsService {
@@ -87,7 +88,7 @@ export class HoldsService {
       }
 
       // 3. Crear hold
-      const expiresAt = addMinutes(new Date(), 10);
+      const expiresAt = addMinutes(new Date(), HOLD_EXPIRATION_MINUTES);
       const newHold = await tx.hold.create({
         data: {
           tenantId: tenant.tenantId,
@@ -159,7 +160,7 @@ export class HoldsService {
    */
   async releaseExpiredHolds() {
     const now = new Date();
-    const BATCH_SIZE = 50; // Procesar máximo 50 holds por ejecución
+    const BATCH_SIZE = HOLD_CLEANUP_BATCH_SIZE;
 
     // Buscar holds expirados no liberados (limitado)
     const expiredHolds = await this.prisma.hold.findMany({
@@ -227,8 +228,8 @@ export class HoldsService {
           }
         },
         {
-          maxWait: 5000, // Esperar máximo 5 segundos para adquirir el lock
-          timeout: 10000, // Timeout de 10 segundos para la transacción
+          maxWait: HOLD_CLEANUP_MAX_WAIT_MS,
+          timeout: HOLD_CLEANUP_TIMEOUT_MS,
         },
       );
 

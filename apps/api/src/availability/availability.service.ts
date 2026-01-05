@@ -2,9 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { startOfDay, endOfDay, addDays, parseISO, setHours, setMinutes, addMinutes, differenceInDays } from 'date-fns';
-
-// Constants
-const MAX_DATE_RANGE_DAYS = 90;
+import { MAX_AVAILABILITY_DATE_RANGE_DAYS } from '../common/constants';
 
 export interface TimeSlot {
   start: string;
@@ -34,8 +32,8 @@ export class AvailabilityService {
     if (daysDiff < 0) {
       throw new BadRequestException('End date must be after start date');
     }
-    if (daysDiff > MAX_DATE_RANGE_DAYS) {
-      throw new BadRequestException(`Date range cannot exceed ${MAX_DATE_RANGE_DAYS} days`);
+    if (daysDiff > MAX_AVAILABILITY_DATE_RANGE_DAYS) {
+      throw new BadRequestException(`Date range cannot exceed ${MAX_AVAILABILITY_DATE_RANGE_DAYS} days`);
     }
 
     // Buscar offering

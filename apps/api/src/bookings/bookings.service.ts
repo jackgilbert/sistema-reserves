@@ -2,8 +2,9 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { customAlphabet } from 'nanoid';
+import { BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH } from '../common/constants';
 
-const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
+const nanoid = customAlphabet(BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH);
 
 export interface CreateBookingFromHoldDto {
   holdId: string;
