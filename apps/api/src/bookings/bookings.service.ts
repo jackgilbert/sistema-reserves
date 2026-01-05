@@ -21,17 +21,27 @@ export class BookingsService {
 
   /**
    * Generar código único para la reserva
+   * Retry logic to handle race conditions
    */
-  private async generateCode(): Promise<string> {
-    let code = nanoid();
-    let exists = await this.prisma.booking.findUnique({ where: { code } });
+  private async generateCode(maxRetries = 5): Promise<string> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const code = nanoid();
+      
+      // Check uniqueness
+      const exists = await this.prisma.booking.findUnique({ 
+        where: { code },
+        select: { id: true },
+      });
 
-    while (exists) {
-      code = nanoid();
-      exists = await this.prisma.booking.findUnique({ where: { code } });
+      if (!exists) {
+        return code;
+      }
+      
+      // Log collision for monitoring
+      this.logger.warn(`Booking code collision detected: ${code} (attempt ${attempt + 1}/${maxRetries})`);
     }
 
-    return code;
+    throw new Error('Failed to generate unique booking code after maximum retries');
   }
 
   /**
