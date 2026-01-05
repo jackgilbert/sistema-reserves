@@ -13,6 +13,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { CheckInModule } from './checkin/checkin.module';
 import { PaymentsModule } from './payments/payments.module';
 import { TasksModule } from './tasks/tasks.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TasksModule } from './tasks/tasks.module';
     PaymentsModule,
     CheckInModule,
     TasksModule,
+    HealthModule,
   ],
   providers: [
     // Apply rate limiting globally
