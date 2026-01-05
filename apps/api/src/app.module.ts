@@ -1,5 +1,7 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { TenantModule } from './tenant/tenant.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
 import { InstancesModule } from './instances/instances.module';
@@ -17,6 +19,13 @@ import { TasksModule } from './tasks/tasks.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    // Rate limiting: 10 requests per minute by default
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minute
+        limit: 10,
+      },
+    ]),
     TenantModule,
     InstancesModule,
     AuthModule,
@@ -27,6 +36,13 @@ import { TasksModule } from './tasks/tasks.module';
     PaymentsModule,
     CheckInModule,
     TasksModule,
+  ],
+  providers: [
+    // Apply rate limiting globally
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {
