@@ -1,5 +1,19 @@
-import { Controller, Post, Get, Body, Headers, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Headers,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiHeader,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService, LoginDto, RegisterUserDto } from './auth.service';
 import { TenantService } from '../tenant/tenant.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -23,7 +37,9 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.authService.login(dto, tenant);
   }
 
@@ -40,7 +56,9 @@ export class AuthController {
     @Body() dto: RegisterUserDto,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.authService.register(dto, tenant);
   }
 

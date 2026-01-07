@@ -8,7 +8,9 @@ export class InstancesService {
   /**
    * Crear una nueva instancia
    */
-  async create(dto: CreateInstanceDto): Promise<Instance & { domains: Domain[] }> {
+  async create(
+    dto: CreateInstanceDto,
+  ): Promise<Instance & { domains: Domain[] }> {
     return prisma.instance.create({
       data: {
         slug: dto.slug,
@@ -37,7 +39,14 @@ export class InstancesService {
   /**
    * Listar todas las instancias
    */
-  async findAll(): Promise<Array<Instance & { domains: Domain[]; _count: { offerings: number; bookings: number; users: number } }>> {
+  async findAll(): Promise<
+    Array<
+      Instance & {
+        domains: Domain[];
+        _count: { offerings: number; bookings: number; users: number };
+      }
+    >
+  > {
     return prisma.instance.findMany({
       include: {
         domains: true,
@@ -58,7 +67,9 @@ export class InstancesService {
   /**
    * Obtener una instancia por ID
    */
-  async findOne(id: string): Promise<(Instance & { domains: Domain[] }) | null> {
+  async findOne(
+    id: string,
+  ): Promise<(Instance & { domains: Domain[] }) | null> {
     return prisma.instance.findUnique({
       where: { id },
       include: {
@@ -70,7 +81,9 @@ export class InstancesService {
   /**
    * Obtener una instancia por slug
    */
-  async findBySlug(slug: string): Promise<(Instance & { domains: Domain[] }) | null> {
+  async findBySlug(
+    slug: string,
+  ): Promise<(Instance & { domains: Domain[] }) | null> {
     return prisma.instance.findUnique({
       where: { slug },
       include: {
@@ -82,7 +95,10 @@ export class InstancesService {
   /**
    * Actualizar una instancia
    */
-  async update(id: string, dto: UpdateInstanceDto): Promise<Instance & { domains: Domain[] }> {
+  async update(
+    id: string,
+    dto: UpdateInstanceDto,
+  ): Promise<Instance & { domains: Domain[] }> {
     return prisma.instance.update({
       where: { id },
       data: {
@@ -115,7 +131,11 @@ export class InstancesService {
   /**
    * Añadir un dominio a una instancia
    */
-  async addDomain(instanceId: string, domain: string, isPrimary = false): Promise<Domain> {
+  async addDomain(
+    instanceId: string,
+    domain: string,
+    isPrimary = false,
+  ): Promise<Domain> {
     return prisma.domain.create({
       data: {
         domain,

@@ -58,7 +58,7 @@ export class AuthService {
     console.log('🔑 Comparing password...');
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     console.log('✅ Password valid:', isPasswordValid);
-    
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }

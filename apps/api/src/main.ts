@@ -40,8 +40,12 @@ async function bootstrap() {
         /^https?:\/\/.*\.github\.dev(?::\d+)?$/,
       ];
 
-      const allowed = allowedOriginPatterns.some((pattern) => pattern.test(origin));
-      return allowed ? callback(null, true) : callback(new Error('Not allowed by CORS'));
+      const allowed = allowedOriginPatterns.some((pattern) =>
+        pattern.test(origin),
+      );
+      return allowed
+        ? callback(null, true)
+        : callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
   });

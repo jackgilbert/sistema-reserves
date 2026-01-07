@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 
 export default function AdminCheckinPage() {
   const [code, setCode] = useState('');
@@ -8,8 +9,30 @@ export default function AdminCheckinPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
 
-  const handleScan = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string>('');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scannerControlsRef = useRef<IScannerControls | null>(null);
+
+  const codeReader = useMemo(() => new BrowserQRCodeReader(), []);
+
+  const stopCamera = () => {
+    scannerControlsRef.current?.stop();
+    scannerControlsRef.current = null;
+    setCameraActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const performCheckIn = async (scannedCode: string) => {
+    const normalizedCode = scannedCode.trim().toUpperCase();
+    if (!normalizedCode) return;
+
     setLoading(true);
     setError('');
     setResult(null);
@@ -23,7 +46,7 @@ export default function AdminCheckinPage() {
           'Content-Type': 'application/json',
           'x-tenant-domain': window.location.hostname,
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code: normalizedCode }),
       });
 
       if (!response.ok) {
@@ -33,7 +56,7 @@ export default function AdminCheckinPage() {
 
       const data = await response.json();
       setResult(data);
-      setCode(''); // Limpiar input
+      setCode('');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -41,8 +64,9 @@ export default function AdminCheckinPage() {
     }
   };
 
-  const handleVerify = async () => {
-    if (!code.trim()) return;
+  const performVerify = async (scannedCode: string) => {
+    const normalizedCode = scannedCode.trim().toUpperCase();
+    if (!normalizedCode) return;
 
     setLoading(true);
     setError('');
@@ -50,8 +74,7 @@ export default function AdminCheckinPage() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(
-        `/api/checkin/verify/${code}`,
+      const response = await fetch(`/api/checkin/verify/${normalizedCode}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -73,6 +96,55 @@ export default function AdminCheckinPage() {
     }
   };
 
+  const startCamera = async () => {
+    setCameraError('');
+
+    if (!videoRef.current) {
+      setCameraError('No se pudo inicializar la cámara');
+      return;
+    }
+
+    // Reset cualquier sesión previa
+    stopCamera();
+
+    try {
+      setCameraActive(true);
+
+      const controls = await codeReader.decodeFromVideoDevice(
+        undefined,
+        videoRef.current,
+        async (result, err, controls) => {
+          if (result) {
+            const text = result.getText().trim().toUpperCase();
+            setCode(text);
+            controls.stop();
+            scannerControlsRef.current = null;
+            setCameraActive(false);
+            await performCheckIn(text);
+          }
+        },
+      );
+
+      scannerControlsRef.current = controls;
+    } catch (e: any) {
+      setCameraActive(false);
+      setCameraError(
+        e?.message ||
+          'No se pudo acceder a la cámara. Revisa permisos del navegador.',
+      );
+    }
+  };
+
+  const handleScan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performCheckIn(code);
+  };
+
+  const handleVerify = async () => {
+    if (!code.trim()) return;
+    await performVerify(code);
+  };
+
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
@@ -84,6 +156,51 @@ export default function AdminCheckinPage() {
         </div>
 
         <div className="mt-8 bg-white shadow-sm rounded-lg p-6">
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-medium text-gray-900">Escáner QR (cámara)</h2>
+              <div className="flex gap-2">
+                {!cameraActive ? (
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    disabled={loading}
+                    className="py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Iniciar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className="py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Detener
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {cameraError && (
+              <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                {cameraError}
+              </div>
+            )}
+
+            <div className="mt-3">
+              <video
+                ref={videoRef}
+                className="w-full rounded-md border border-gray-200 bg-black"
+                style={{ aspectRatio: '16 / 9' }}
+                muted
+                playsInline
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                Al detectar un QR válido, se ejecuta el check-in automáticamente.
+              </p>
+            </div>
+          </div>
+
           <form onSubmit={handleScan}>
             <div className="space-y-4">
               <div>

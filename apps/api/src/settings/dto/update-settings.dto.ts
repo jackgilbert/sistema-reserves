@@ -1,4 +1,12 @@
-import { IsBoolean, IsNumber, IsOptional, IsString, IsEnum, ValidateNested, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsEnum,
+  ValidateNested,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -8,7 +16,10 @@ class GeneralSettingsDto {
   @IsString()
   businessName?: string;
 
-  @ApiProperty({ required: false, enum: ['museum', 'event', 'restaurant', 'service', 'other'] })
+  @ApiProperty({
+    required: false,
+    enum: ['museum', 'event', 'restaurant', 'service', 'other'],
+  })
   @IsOptional()
   @IsEnum(['museum', 'event', 'restaurant', 'service', 'other'])
   businessType?: 'museum' | 'event' | 'restaurant' | 'service' | 'other';

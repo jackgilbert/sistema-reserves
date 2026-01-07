@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { differenceInDays, startOfDay } from 'date-fns';
@@ -22,7 +26,7 @@ export class CheckinService {
   async checkIn(code: string, scannedBy: string | null, tenant: TenantContext) {
     // Buscar booking
     const booking = await this.bookingRepository.findByCodeOrFail(code, tenant);
-    
+
     // Load check-in events
     const bookingWithEvents = await this.prisma.booking.findUnique({
       where: { id: booking.id },
@@ -116,7 +120,7 @@ export class CheckinService {
    */
   async verifyBooking(code: string, tenant: TenantContext) {
     const booking = await this.bookingRepository.findByCodeOrFail(code, tenant);
-    
+
     // Load check-in events
     const bookingWithEvents = await this.prisma.booking.findUnique({
       where: { id: booking.id },

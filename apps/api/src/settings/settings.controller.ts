@@ -1,10 +1,22 @@
-import { Controller, Get, Post, Patch, Body, Headers, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Headers,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { TenantService } from '../tenant/tenant.service';
 import { UpdateFeatureFlagsDto } from './dto/update-feature-flags.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
-import { ApplyTemplateDto, ImportSettingsDto, ValidateSettingsDto } from './dto/template-operations.dto';
+import {
+  ApplyTemplateDto,
+  ImportSettingsDto,
+  ValidateSettingsDto,
+} from './dto/template-operations.dto';
 import { FeatureFlags, TenantSettings } from './settings.types';
 
 @ApiTags('Settings')
@@ -26,7 +38,9 @@ export class SettingsController {
   async getFeatureFlags(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<FeatureFlags> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.getFeatureFlags(tenant);
   }
 
@@ -39,18 +53,24 @@ export class SettingsController {
     @Body() dto: UpdateFeatureFlagsDto,
     @Headers('x-tenant-domain') domain: string,
   ): Promise<FeatureFlags> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.updateFeatureFlags(dto, tenant);
   }
 
   @Patch('features/reset')
-  @ApiOperation({ summary: 'Resetear feature flags a valores por defecto (admin)' })
+  @ApiOperation({
+    summary: 'Resetear feature flags a valores por defecto (admin)',
+  })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Feature flags reseteados' })
   async resetFeatureFlags(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<FeatureFlags> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.resetFeatureFlags(tenant);
   }
 
@@ -59,13 +79,17 @@ export class SettingsController {
   // ============================================================================
 
   @Get()
-  @ApiOperation({ summary: 'Obtener configuración completa del tenant (admin)' })
+  @ApiOperation({
+    summary: 'Obtener configuración completa del tenant (admin)',
+  })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Configuración obtenida' })
   async getSettings(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<TenantSettings> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.getSettings(tenant);
   }
 
@@ -78,18 +102,24 @@ export class SettingsController {
     @Body() dto: UpdateSettingsDto,
     @Headers('x-tenant-domain') domain: string,
   ): Promise<TenantSettings> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.updateSettings(dto, tenant);
   }
 
   @Get('public')
-  @ApiOperation({ summary: 'Obtener configuración pública (sin datos sensibles)' })
+  @ApiOperation({
+    summary: 'Obtener configuración pública (sin datos sensibles)',
+  })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Configuración pública obtenida' })
   async getPublicSettings(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<Partial<TenantSettings>> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.getPublicSettings(tenant);
   }
 
@@ -113,8 +143,14 @@ export class SettingsController {
     @Body() dto: ApplyTemplateDto,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
-    return this.settingsService.applyTemplate(dto.template, tenant, dto.overwrite);
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
+    return this.settingsService.applyTemplate(
+      dto.template,
+      tenant,
+      dto.overwrite,
+    );
   }
 
   @Get('templates/compare')
@@ -125,7 +161,9 @@ export class SettingsController {
     @Query('template') template: string,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.compareWithTemplate(template as any, tenant);
   }
 
@@ -156,7 +194,9 @@ export class SettingsController {
     @Query('includeFeatureFlags') includeFeatureFlags?: string,
     @Query('includeSettings') includeSettings?: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.exportConfiguration(
       tenant,
       includeFeatureFlags !== 'false',
@@ -173,7 +213,9 @@ export class SettingsController {
     @Body() dto: ImportSettingsDto,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.settingsService.importConfiguration(
       tenant,
       {

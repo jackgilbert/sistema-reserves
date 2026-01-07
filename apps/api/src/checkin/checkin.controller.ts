@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, Param, Query, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Query,
+  Headers,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { CheckinService, CheckInDto } from './checkin.service';
 import { TenantService } from '../tenant/tenant.service';
@@ -21,7 +29,9 @@ export class CheckinController {
     @Body() dto: CheckInDto,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.checkinService.checkIn(dto.code, dto.scannedBy || null, tenant);
   }
 
@@ -34,7 +44,9 @@ export class CheckinController {
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.checkinService.verifyBooking(code, tenant);
   }
 
@@ -46,7 +58,9 @@ export class CheckinController {
     @Query('date') date: string,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     const limit = 50;
     return this.checkinService.getCheckInHistory(tenant, limit);
   }

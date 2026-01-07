@@ -1,6 +1,19 @@
 import { Controller, Post, Get, Body, Param, Headers } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiProperty } from '@nestjs/swagger';
-import { IsString, IsDateString, IsInt, Min, IsOptional, IsEmail } from 'class-validator';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiHeader,
+  ApiProperty,
+} from '@nestjs/swagger';
+import {
+  IsString,
+  IsDateString,
+  IsInt,
+  Min,
+  IsOptional,
+  IsEmail,
+} from 'class-validator';
 import { HoldsService } from './holds.service';
 import { TenantService } from '../tenant/tenant.service';
 
@@ -9,11 +22,17 @@ class CreateHoldDto {
   @IsString()
   offeringId: string;
 
-  @ApiProperty({ description: 'Inicio del slot (ISO 8601)', example: '2024-01-15T10:00:00.000Z' })
+  @ApiProperty({
+    description: 'Inicio del slot (ISO 8601)',
+    example: '2024-01-15T10:00:00.000Z',
+  })
   @IsDateString()
   slotStart: string;
 
-  @ApiProperty({ description: 'Fin del slot (ISO 8601)', example: '2024-01-15T11:00:00.000Z' })
+  @ApiProperty({
+    description: 'Fin del slot (ISO 8601)',
+    example: '2024-01-15T11:00:00.000Z',
+  })
   @IsDateString()
   slotEnd: string;
 
@@ -57,7 +76,9 @@ export class HoldsController {
     @Headers('x-tenant-domain') domain: string,
   ) {
     try {
-      const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+      const tenant = await this.tenantService.resolveTenantByDomain(
+        domain || 'localhost',
+      );
       return await this.holdsService.createHold(
         dto.offeringId,
         new Date(dto.slotStart),
@@ -81,7 +102,9 @@ export class HoldsController {
     @Param('id') id: string,
     @Headers('x-tenant-domain') domain: string,
   ): Promise<unknown> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.holdsService.getHold(id, tenant);
   }
 }

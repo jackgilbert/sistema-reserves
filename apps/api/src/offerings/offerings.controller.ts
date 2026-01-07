@@ -1,15 +1,26 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { OfferingsService, CreateOfferingDto, UpdateOfferingDto } from './offerings.service';
+import {
+  OfferingsService,
+  CreateOfferingDto,
+  UpdateOfferingDto,
+} from './offerings.service';
 import { Tenant } from '../tenant/tenant.decorator';
 import { TenantContext } from '@sistema-reservas/shared';
 
 @ApiTags('Offerings')
 @Controller('offerings')
 export class OfferingsController {
-  constructor(
-    private readonly offeringsService: OfferingsService,
-  ) {}
+  constructor(private readonly offeringsService: OfferingsService) {}
 
   @Post()
   @ApiOperation({ summary: 'Crear una nueva oferta' })
@@ -70,10 +81,7 @@ export class OfferingsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Desactivar una oferta' })
   @ApiResponse({ status: 200, description: 'Oferta desactivada' })
-  async remove(
-    @Param('id') id: string,
-    @Tenant() tenant: TenantContext,
-  ) {
+  async remove(@Param('id') id: string, @Tenant() tenant: TenantContext) {
     await this.offeringsService.toggleActive(id, false, tenant);
     return { message: 'Oferta desactivada exitosamente' };
   }

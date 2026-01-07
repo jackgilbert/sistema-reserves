@@ -14,9 +14,13 @@ export class AvailabilityController {
 
   @Get()
   @ApiOperation({ summary: 'Obtener disponibilidad de una oferta' })
-  @ApiHeader({ name: 'x-tenant-domain', required: true, description: 'Dominio del tenant' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiHeader({
+    name: 'x-tenant-domain',
+    required: true,
+    description: 'Dominio del tenant',
+  })
+  @ApiResponse({
+    status: 200,
     description: 'Disponibilidad calculada',
     schema: {
       type: 'array',
@@ -47,7 +51,9 @@ export class AvailabilityController {
     @Query() query: QueryAvailabilityDto,
     @Headers('x-tenant-domain') domain: string,
   ): Promise<Record<string, TimeSlot[]>> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.availabilityService.getAvailability(
       query.offeringId,
       query.startDate,

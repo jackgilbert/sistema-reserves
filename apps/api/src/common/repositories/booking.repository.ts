@@ -32,7 +32,7 @@ export class BookingRepository {
       offering?: boolean;
       items?: boolean;
       tickets?: boolean;
-    }
+    },
   ): Promise<Booking | null> {
     return this.prisma.booking.findFirst({
       where: {
@@ -56,7 +56,7 @@ export class BookingRepository {
       offering?: boolean;
       items?: boolean;
       tickets?: boolean;
-    }
+    },
   ): Promise<Booking> {
     const booking = await this.findByCode(code, tenant, includes);
 
@@ -77,7 +77,7 @@ export class BookingRepository {
       offering?: boolean;
       items?: boolean;
       tickets?: boolean;
-    }
+    },
   ): Promise<Booking | null> {
     return this.prisma.booking.findFirst({
       where: {
@@ -101,7 +101,7 @@ export class BookingRepository {
       offering?: boolean;
       items?: boolean;
       tickets?: boolean;
-    }
+    },
   ): Promise<Booking> {
     const booking = await this.findById(id, tenant, includes);
 
@@ -122,7 +122,7 @@ export class BookingRepository {
       offeringId?: string;
       startDate?: Date;
       endDate?: Date;
-    }
+    },
   ): Promise<BookingWithOfferingAndItems[]> {
     const where: Prisma.BookingWhereInput = {
       tenantId: tenant.tenantId,

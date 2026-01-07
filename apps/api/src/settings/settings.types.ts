@@ -53,7 +53,7 @@ export interface TenantSettings {
     address?: string;
     description?: string;
   };
-  
+
   // Configuración regional
   regional: {
     timezone: string;

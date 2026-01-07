@@ -19,15 +19,28 @@ export class ApplyTemplateDto {
 }
 
 export class ExportSettingsDto {
-  @ApiProperty({ description: 'Incluir feature flags', required: false, default: true })
+  @ApiProperty({
+    description: 'Incluir feature flags',
+    required: false,
+    default: true,
+  })
   @IsOptional()
   includeFeatureFlags?: boolean;
 
-  @ApiProperty({ description: 'Incluir settings', required: false, default: true })
+  @ApiProperty({
+    description: 'Incluir settings',
+    required: false,
+    default: true,
+  })
   @IsOptional()
   includeSettings?: boolean;
 
-  @ApiProperty({ description: 'Formato de exportación', enum: ['json', 'yaml'], required: false, default: 'json' })
+  @ApiProperty({
+    description: 'Formato de exportación',
+    enum: ['json', 'yaml'],
+    required: false,
+    default: 'json',
+  })
   @IsOptional()
   @IsEnum(['json', 'yaml'])
   format?: 'json' | 'yaml';
@@ -44,7 +57,11 @@ export class ImportSettingsDto {
   @IsObject()
   settings?: Record<string, any>;
 
-  @ApiProperty({ description: 'Validar antes de importar', required: false, default: true })
+  @ApiProperty({
+    description: 'Validar antes de importar',
+    required: false,
+    default: true,
+  })
   @IsOptional()
   validate?: boolean;
 }

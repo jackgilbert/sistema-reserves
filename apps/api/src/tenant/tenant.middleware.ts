@@ -20,7 +20,7 @@ export class TenantMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     // Obtener el dominio del header x-tenant-domain primero, luego Host
     let domain = req.get('x-tenant-domain');
-    
+
     if (!domain) {
       // Obtener el dominio del header Host
       const host = req.get('host') || req.hostname;
