@@ -30,8 +30,10 @@ export interface UpdateOfferingDto {
   name?: string;
   description?: string;
   basePrice?: number;
+  currency?: string;
   capacity?: number;
   active?: boolean;
+  priceVariants?: Array<{ name: string; price: number; description?: string }>;
 }
 
 export interface CreateResourceDto {
@@ -222,6 +224,40 @@ export class OfferingsService {
     });
 
     return updated;
+  }
+
+  /**
+   * Actualizar campos de una offering
+   */
+  async update(
+    id: string,
+    dto: UpdateOfferingDto,
+    tenant: TenantContext,
+  ): Promise<unknown> {
+    await this.findOne(id, tenant);
+
+    const data: Record<string, any> = {};
+
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.description !== undefined) data.description = dto.description || null;
+    if (dto.basePrice !== undefined) data.basePrice = dto.basePrice;
+    if (dto.currency !== undefined) data.currency = dto.currency;
+    if (dto.capacity !== undefined) data.capacity = dto.capacity ?? null;
+    if (dto.active !== undefined) data.active = dto.active;
+    if (dto.priceVariants !== undefined) data.priceVariants = dto.priceVariants;
+
+    if (Object.keys(data).length === 0) {
+      return this.findOne(id, tenant);
+    }
+
+    return this.prisma.offering.update({
+      where: { id },
+      data,
+      include: {
+        schedules: true,
+        resources: { where: { active: true } },
+      },
+    });
   }
 
   /**

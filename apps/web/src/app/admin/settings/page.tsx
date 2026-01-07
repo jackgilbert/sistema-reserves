@@ -128,55 +128,60 @@ export default function AdminSettingsPage() {
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    fetchSettings();
-    fetchFeatures();
+    loadAll();
   }, []);
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('accessToken');
-    return {
-      'Authorization': `Bearer ${token}`,
+    const headers: Record<string, string> = {
       'x-tenant-domain': window.location.hostname,
       'Content-Type': 'application/json',
     };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return headers;
   };
 
-  const fetchSettings = async () => {
-    try {
-      const response = await fetch(
-        `/api/settings`,
-        { headers: getAuthHeaders() }
-      );
+  const loadAll = async () => {
+    setLoading(true);
+    setError('');
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/admin/login');
-          return;
-        }
+    try {
+      const headers = getAuthHeaders();
+
+      const [settingsRes, featuresRes] = await Promise.all([
+        fetch('/api/settings', { headers }),
+        fetch('/api/settings/features', { headers }),
+      ]);
+
+      if (settingsRes.status === 401 || featuresRes.status === 401) {
+        router.push('/admin/login');
+        return;
+      }
+
+      if (!settingsRes.ok) {
         throw new Error('Error al cargar configuración');
       }
 
-      const data = await response.json();
-      setSettings(data);
+      if (!featuresRes.ok) {
+        throw new Error('Error al cargar feature flags');
+      }
+
+      const [settingsData, featuresData] = await Promise.all([
+        settingsRes.json(),
+        featuresRes.json(),
+      ]);
+
+      setSettings(settingsData);
+      setFeatures(featuresData);
     } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const fetchFeatures = async () => {
-    try {
-      const response = await fetch(
-        `/api/settings/features`,
-        { headers: getAuthHeaders() }
-      );
-
-      if (!response.ok) throw new Error('Error al cargar feature flags');
-
-      const data = await response.json();
-      setFeatures(data);
-      setLoading(false);
-    } catch (err: any) {
-      setError(err.message);
+      setSettings(null);
+      setFeatures(null);
+      setError(err?.message || 'Error al cargar configuración');
+    } finally {
       setLoading(false);
     }
   };

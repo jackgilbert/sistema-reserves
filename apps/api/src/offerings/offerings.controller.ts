@@ -75,7 +75,7 @@ export class OfferingsController {
     @Body() dto: UpdateOfferingDto,
     @Tenant() tenant: TenantContext,
   ): Promise<unknown> {
-    return this.offeringsService.toggleActive(id, dto.active ?? true, tenant);
+    return this.offeringsService.update(id, dto, tenant);
   }
 
   @Delete(':id')
