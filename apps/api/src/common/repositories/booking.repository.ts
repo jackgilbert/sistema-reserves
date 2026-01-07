@@ -1,6 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaClient, Booking } from '@sistema-reservas/db';
+import { Prisma, PrismaClient, Booking } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
+
+type BookingWithOfferingAndItems = Prisma.BookingGetPayload<{
+  include: {
+    offering: {
+      select: {
+        name: true;
+        type: true;
+      };
+    };
+    items: true;
+  };
+}>;
 
 /**
  * Shared repository for booking-related database operations
@@ -111,8 +123,8 @@ export class BookingRepository {
       startDate?: Date;
       endDate?: Date;
     }
-  ) {
-    const where: any = {
+  ): Promise<BookingWithOfferingAndItems[]> {
+    const where: Prisma.BookingWhereInput = {
       tenantId: tenant.tenantId,
     };
 
