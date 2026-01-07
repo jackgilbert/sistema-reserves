@@ -144,7 +144,7 @@ export default function AdminSettingsPage() {
   const fetchSettings = async () => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/settings`,
+        `/api/settings`,
         { headers: getAuthHeaders() }
       );
 
@@ -166,7 +166,7 @@ export default function AdminSettingsPage() {
   const fetchFeatures = async () => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/settings/features`,
+        `/api/settings/features`,
         { headers: getAuthHeaders() }
       );
 
@@ -190,7 +190,7 @@ export default function AdminSettingsPage() {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/settings`,
+        `/api/settings`,
         {
           method: 'PATCH',
           headers: getAuthHeaders(),
@@ -218,7 +218,7 @@ export default function AdminSettingsPage() {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/settings/features`,
+        `/api/settings/features`,
         {
           method: 'PATCH',
           headers: getAuthHeaders(),
