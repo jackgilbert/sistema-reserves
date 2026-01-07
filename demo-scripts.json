@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "setup:demo": "pnpm install && cd packages/db && npx prisma migrate dev --name add_extended_settings && npx prisma generate && pnpm db:seed && cd ../.. && echo '\n✅ Demo setup complete!\n\n🔐 Login with:\n   Email: admin@museo.com\n   Password: admin123\n\n🌐 Access: http://localhost:3000/admin/login\n'"
+  }
+}

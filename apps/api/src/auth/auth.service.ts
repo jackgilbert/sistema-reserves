@@ -36,6 +36,8 @@ export class AuthService {
   async login(dto: LoginDto, tenant: TenantContext) {
     const { email, password } = dto;
 
+    console.log('🔐 Login attempt:', { email, tenantId: tenant.tenantId });
+
     // Buscar usuario
     const user = await this.prisma.user.findUnique({
       where: {
@@ -46,12 +48,17 @@ export class AuthService {
       },
     });
 
+    console.log('👤 User found:', user ? `YES (${user.email})` : 'NO');
+
     if (!user) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     // Verificar password
+    console.log('🔑 Comparing password...');
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    console.log('✅ Password valid:', isPasswordValid);
+    
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }

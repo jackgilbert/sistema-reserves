@@ -18,8 +18,8 @@ interface Offering {
     slotDuration: number;
   }>;
   // Algunos endpoints devuelven `priceVariants` (schema) y otros `variants`.
-  variants?: Array<{ id?: string; name: string; price: number }>;
-  priceVariants?: Array<{ id?: string; name: string; price: number }>;
+  variants?: Array<{ id?: string; name: string; price: number; description?: string }>;
+  priceVariants?: Array<{ id?: string; name: string; price: number; description?: string }>;
 }
 
 export default function AdminOfferingsPage() {
