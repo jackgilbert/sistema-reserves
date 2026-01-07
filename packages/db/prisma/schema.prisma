@@ -96,7 +96,6 @@ model User {
   @@unique([tenantId, email])
   @@index([tenantId, email])
   @@index([tenantId, active])
-  @@index([tenantId, active, role])
   @@map("users")
 }
 
@@ -199,12 +198,12 @@ model InventoryBucket {
 
   // Capacidad
   totalCapacity Int // capacidad total para esta franja
-  heldCapacity  Int @default(0) // capacidad actualmente en hold
-  soldCapacity  Int @default(0) // capacidad vendida/confirmada
+  heldCapacity  Int      @default(0) // capacidad actualmente en hold
+  soldCapacity  Int      @default(0) // capacidad vendida/confirmada
 
   // Metadata por franja (ej: idioma, guía, etiqueta, descripción)
-  metadata Json     @default("{}")
-  instance Instance @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  metadata Json @default("{}")
+  instance      Instance @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   offering Offering @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
 
@@ -242,7 +241,6 @@ model Hold {
 
   @@index([tenantId, expiresAt])
   @@index([tenantId, offeringId, slotStart])
-  @@index([tenantId, expiresAt, released])
   @@map("holds")
 }
 
@@ -293,7 +291,6 @@ model Booking {
   @@unique([tenantId, code])
   @@index([tenantId, status])
   @@index([tenantId, offeringId, slotStart])
-  @@index([tenantId, slotStart, status])
   @@index([code])
   @@index([customerEmail])
   @@map("bookings")
@@ -347,18 +344,18 @@ model BookingItem {
 // ============================================================================
 
 model Ticket {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   tenantId     String
   bookingId    String
   code         String
-  status       String    @default("ACTIVE") // ACTIVE, USED, CANCELLED
-  createdAt    DateTime  @default(now())
+  status       String   @default("ACTIVE") // ACTIVE, USED, CANCELLED
+  createdAt    DateTime @default(now())
   usedAt       DateTime?
   usedBy       String?
   usedLocation String?
 
-  instance      Instance       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  instance      Instance      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   checkInEvents CheckInEvent[]
 
   @@unique([tenantId, code])

@@ -1,11 +1,9 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 
 @Injectable()
 export class TenantService {
-  private readonly logger = new Logger(TenantService.name);
-  
   constructor(private readonly prisma: PrismaClient) {}
   
   // Cache simple en memoria (en producción usar Redis)
@@ -35,7 +33,7 @@ export class TenantService {
         include: { instance: true },
       });
     } catch (error) {
-      this.logger.error(`Failed to query domain ${domain}`, error.stack || error);
+      console.error(`❌ Error al buscar dominio ${domain}:`, error);
       throw error;
     }
 

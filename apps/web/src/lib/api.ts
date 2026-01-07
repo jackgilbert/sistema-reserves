@@ -27,22 +27,11 @@ export async function fetchApi<T>(
   
   const API_URL = getApiUrl();
 
-  // In client, route via Next proxy: /api/v1/<endpoint>
-  // Ensure endpoint doesn't already have /api or /api/v1 prefix
+  // En cliente, enrutar via proxy Next: /api/<endpoint>
   const isBrowser = typeof window !== 'undefined';
-  let proxiedEndpoint = endpoint;
-  
-  if (isBrowser) {
-    // Strip any existing /api or /api/v1 prefix
-    proxiedEndpoint = endpoint.replace(/^\/api(\/v1)?/, '');
-    // Add /api/v1 prefix
-    proxiedEndpoint = `/api/v1${proxiedEndpoint}`;
-  } else {
-    // Server-side: add /api/v1 if not present
-    if (!endpoint.startsWith('/api/v1')) {
-      proxiedEndpoint = `/api/v1${endpoint}`;
-    }
-  }
+  const proxiedEndpoint = isBrowser && !endpoint.startsWith('/api')
+    ? `/api${endpoint}`
+    : endpoint;
   
   // Construir URL con parámetros
   let url = `${API_URL}${proxiedEndpoint}`;
@@ -59,7 +48,7 @@ export async function fetchApi<T>(
     domain = 'localhost';
     try {
       const { getServerTenantDomain } = await import('./serverTenant');
-      domain = await getServerTenantDomain();
+      domain = getServerTenantDomain();
     } catch {
       // Ignorar: en runtime no-Next, usar 'localhost'
     }
