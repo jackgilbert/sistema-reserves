@@ -7,8 +7,12 @@ function getApiUrl(): string {
   if (typeof window === 'undefined') {
     return process.env.API_URL || 'http://localhost:3001';
   }
+
   // Si estamos en el cliente (browser)
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // En el navegador, preferimos usar un proxy same-origin (/api/...)
+  // para no depender de que el puerto 3001 sea público (Codespaces/port-forwarding)
+  // y para evitar problemas de mixed content.
+  return '';
 }
 
 interface FetchOptions extends RequestInit {
@@ -22,18 +26,34 @@ export async function fetchApi<T>(
   const { params, ...fetchOptions } = options;
   
   const API_URL = getApiUrl();
+
+  // En cliente, enrutar via proxy Next: /api/<endpoint>
+  const isBrowser = typeof window !== 'undefined';
+  const proxiedEndpoint = isBrowser && !endpoint.startsWith('/api')
+    ? `/api${endpoint}`
+    : endpoint;
   
   // Construir URL con parámetros
-  let url = `${API_URL}${endpoint}`;
+  let url = `${API_URL}${proxiedEndpoint}`;
   if (params) {
     const searchParams = new URLSearchParams(params);
     url += `?${searchParams.toString()}`;
   }
 
   // Obtener el dominio actual para el header de tenant
-  const domain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  let domain: string;
+  if (typeof window !== 'undefined') {
+    domain = window.location.hostname;
+  } else {
+    domain = 'localhost';
+    try {
+      const { getServerTenantDomain } = await import('./serverTenant');
+      domain = await getServerTenantDomain();
+    } catch {
+      // Ignorar: en runtime no-Next, usar 'localhost'
+    }
+  }
 
-  console.log(`[API] Fetching ${url} with domain: ${domain} (isServer: ${typeof window === 'undefined'})`);
 
   const response = await fetch(url, {
     ...fetchOptions,

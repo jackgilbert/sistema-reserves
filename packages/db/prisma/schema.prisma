@@ -32,6 +32,14 @@ model Instance {
   currency      String  @default("EUR")
   stripeAccount String? // Stripe Connect account ID
 
+  // Configuración web pública (frontend)
+  siteTitle       String?
+  siteDescription String?
+  contactEmail    String?
+  contactPhone    String?
+  contactAddress  String?
+  usefulInfo      Json    @default("[]") // [{title, description}] o [{text}]
+
   // Feature flags (JSON)
   featureFlags Json @default("{}")
 
@@ -43,6 +51,7 @@ model Instance {
   users               User[]
   offerings           Offering[]
   bookings            Booking[]
+  tickets             Ticket[]
   holds               Hold[]
   resources           Resource[]
   checkInEvents       CheckInEvent[]
@@ -159,9 +168,9 @@ model Schedule {
   validTo   DateTime?
 
   // Antelación
-  minAdvanceMinutes Int @default(0)    // mínimo con cuánta antelación se puede reservar
-  maxAdvanceDays    Int @default(90)   // máximo con cuánta antelación se puede reservar
-  cutoffMinutes     Int @default(0)    // cuántos minutos antes de la franja se cierra la reserva
+  minAdvanceMinutes Int @default(0) // mínimo con cuánta antelación se puede reservar
+  maxAdvanceDays    Int @default(90) // máximo con cuánta antelación se puede reservar
+  cutoffMinutes     Int @default(0) // cuántos minutos antes de la franja se cierra la reserva
 
   // Días específicos cerrados (fechas completas ISO)
   closedDates DateTime[]
@@ -192,10 +201,13 @@ model InventoryBucket {
 
   // Capacidad
   totalCapacity Int // capacidad total para esta franja
-  heldCapacity  Int @default(0) // capacidad actualmente en hold
-  soldCapacity  Int @default(0) // capacidad vendida/confirmada
-instance Instance @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+  heldCapacity  Int      @default(0) // capacidad actualmente en hold
+  soldCapacity  Int      @default(0) // capacidad vendida/confirmada
+
+  // Metadata por franja (ej: idioma, guía, etiqueta, descripción)
+  metadata Json @default("{}")
+  instance      Instance @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   offering Offering @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
 
   @@unique([tenantId, offeringId, slotStart])
@@ -240,21 +252,21 @@ model Hold {
 // ============================================================================
 
 model Booking {
-  id            String   @id @default(uuid())
-  tenantId      String
-  offeringId    String
-  code          String   @unique // código público de la reserva (para QR)
-  slotStart     DateTime
-  slotEnd       DateTime
-  quantity      Int
-  status        String // HOLD, CONFIRMED, CANCELLED, REFUNDED, USED
-  totalAmount   Int // en centavos
-  currency      String   @default("EUR")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  confirmedAt   DateTime?
-  cancelledAt   DateTime?
-  usedAt        DateTime?
+  id          String    @id @default(uuid())
+  tenantId    String
+  offeringId  String
+  code        String    @unique // código público de la reserva (para QR)
+  slotStart   DateTime
+  slotEnd     DateTime
+  quantity    Int
+  status      String // HOLD, CONFIRMED, CANCELLED, REFUNDED, USED
+  totalAmount Int // en centavos
+  currency    String    @default("EUR")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  confirmedAt DateTime?
+  cancelledAt DateTime?
+  usedAt      DateTime?
 
   // Datos del cliente
   customerEmail String
@@ -268,11 +280,15 @@ model Booking {
   stripeCheckoutSessionId String?
   stripePaymentIntentId   String?
 
-  instance        Instance              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  offering        Offering              @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Restrict)
-  items           BookingItem[]
-  payments        Payment[]
-  checkInEvents   CheckInEvent[]
+  // Facturación
+  invoice BookingInvoice?
+
+  instance            Instance             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering            Offering             @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Restrict)
+  items               BookingItem[]
+  tickets             Ticket[]
+  payments            Payment[]
+  checkInEvents       CheckInEvent[]
   resourceAllocations ResourceAllocation[]
 
   @@unique([tenantId, code])
@@ -281,6 +297,34 @@ model Booking {
   @@index([code])
   @@index([customerEmail])
   @@map("bookings")
+}
+
+model BookingInvoice {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Datos fiscales
+  legalName String
+  taxId     String?
+
+  // Contacto
+  email String?
+  phone String?
+
+  // Dirección
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  region       String?
+  postalCode   String
+  country      String
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_invoices")
 }
 
 model BookingItem {
@@ -296,6 +340,31 @@ model BookingItem {
 
   @@index([bookingId])
   @@map("booking_items")
+}
+
+// ============================================================================
+// TICKETS (1 por entrada)
+// ============================================================================
+
+model Ticket {
+  id           String   @id @default(uuid())
+  tenantId     String
+  bookingId    String
+  code         String
+  status       String   @default("ACTIVE") // ACTIVE, USED, CANCELLED
+  createdAt    DateTime @default(now())
+  usedAt       DateTime?
+  usedBy       String?
+  usedLocation String?
+
+  instance      Instance      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  checkInEvents CheckInEvent[]
+
+  @@unique([tenantId, code])
+  @@index([bookingId])
+  @@index([tenantId, bookingId])
+  @@map("tickets")
 }
 
 // ============================================================================
@@ -332,21 +401,21 @@ model Payment {
 // ============================================================================
 
 model Resource {
-  id          String   @id @default(uuid())
-  tenantId    String
-  offeringId  String
-  code        String // ej: "PLAZA-A1"
-  name        String
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  tenantId   String
+  offeringId String
+  code       String // ej: "PLAZA-A1"
+  name       String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Metadata
   metadata Json @default("{}")
 
-  instance     Instance             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  offering     Offering             @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
-  allocations  ResourceAllocation[]
+  instance    Instance             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering    Offering             @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
+  allocations ResourceAllocation[]
 
   @@unique([tenantId, offeringId, code])
   @@index([tenantId, offeringId, active])
@@ -377,18 +446,21 @@ model ResourceAllocation {
 // ============================================================================
 
 model CheckInEvent {
-  id         String   @id @default(uuid())
-  tenantId   String
-  bookingId  String
-  scannedAt  DateTime @default(now())
-  scannedBy  String? // userId del staff que escaneó
-  location   String? // ubicación del escaneo
-  metadata   Json     @default("{}")
+  id        String   @id @default(uuid())
+  tenantId  String
+  bookingId String
+  ticketId  String?
+  scannedAt DateTime @default(now())
+  scannedBy String? // userId del staff que escaneó
+  location  String? // ubicación del escaneo
+  metadata  Json     @default("{}")
 
   instance Instance @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  ticket   Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, bookingId])
+  @@index([tenantId, ticketId])
   @@index([tenantId, scannedAt])
   @@map("checkin_events")
 }

@@ -22,16 +22,11 @@ export class TenantService {
 
     // Normalizar dominios de desarrollo a 'localhost'
     const normalizedDomain = this.normalizeDomain(domain);
-    console.log(`🔍 Buscando dominio: ${domain} (normalizado: ${normalizedDomain})`);
 
     // Verificar cache
     if (this.domainCache.has(normalizedDomain)) {
-      console.log(`✅ Dominio ${normalizedDomain} encontrado en cache`);
       return this.domainCache.get(normalizedDomain)!;
     }
-
-    console.log(`📡 Consultando base de datos para: ${normalizedDomain}`);
-
     // Buscar en base de datos
     let domainRecord;
     try {
@@ -39,7 +34,6 @@ export class TenantService {
         where: { domain: normalizedDomain },
         include: { instance: true },
       });
-      console.log(`📊 Resultado de búsqueda para ${normalizedDomain}:`, domainRecord ? 'ENCONTRADO' : 'NO ENCONTRADO');
     } catch (error) {
       console.error(`❌ Error al buscar dominio ${normalizedDomain}:`, error);
       throw error;
@@ -47,15 +41,18 @@ export class TenantService {
 
     // Si no se encuentra el dominio, buscar el primer dominio activo como fallback (desarrollo)
     if (!domainRecord) {
-      console.log(`⚠️  Dominio ${normalizedDomain} no encontrado, usando instancia por defecto...`);
       domainRecord = await this.prisma.domain.findFirst({
         where: { 
           instance: { active: true },
           isPrimary: true 
         },
         include: { instance: true },
+        orderBy: [
+          { isPrimary: 'desc' },
+          { domain: 'asc' },
+        ],
       });
-      
+
       if (!domainRecord) {
         // Si no hay dominio primario, usar cualquier instancia activa
         domainRecord = await this.prisma.domain.findFirst({
@@ -63,8 +60,6 @@ export class TenantService {
           include: { instance: true },
         });
       }
-      
-      console.log(`📊 Fallback result:`, domainRecord ? `ENCONTRADO: ${domainRecord.domain}` : 'NO ENCONTRADO');
     }
 
     if (!domainRecord) {

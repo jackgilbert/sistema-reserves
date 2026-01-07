@@ -7,9 +7,7 @@ export default async function HomePage() {
   let error: string | null = null;
 
   try {
-    console.log('[HomePage] Fetching offerings...');
     offerings = await api.offerings.list();
-    console.log('[HomePage] Offerings fetched:', offerings.length);
   } catch (e) {
     console.error('[HomePage] Error fetching offerings:', e);
     error = e instanceof Error ? e.message : 'Error al cargar las ofertas';
@@ -20,7 +18,7 @@ export default async function HomePage() {
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-start">
+          <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
                 Sistema de Reservas
@@ -29,17 +27,12 @@ export default async function HomePage() {
                 Selecciona una experiencia para reservar
               </p>
             </div>
-            <div className="flex gap-4 mt-1">
-              <Link
-                href="/admin/login"
-                className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
-                Administrar
-              </Link>
-            </div>
+            <Link
+              href="/admin/login"
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Administrar
+            </Link>
           </div>
         </div>
       </header>

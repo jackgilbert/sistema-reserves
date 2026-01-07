@@ -11,17 +11,15 @@ interface Offering {
   basePrice: number;
   capacity: number | null;
   active: boolean;
-  schedules: Array<{
+  schedules?: Array<{
     daysOfWeek: number[];
     startTime: string;
     endTime: string;
     slotDuration: number;
   }>;
-  priceVariants?: Array<{
-    name: string;
-    price: number;
-    description?: string;
-  }>;
+  // Algunos endpoints devuelven `priceVariants` (schema) y otros `variants`.
+  variants?: Array<{ id?: string; name: string; price: number; description?: string }>;
+  priceVariants?: Array<{ id?: string; name: string; price: number; description?: string }>;
 }
 
 export default function AdminOfferingsPage() {
@@ -37,7 +35,7 @@ export default function AdminOfferingsPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/offerings?activeOnly=false`,
+        '/api/offerings?activeOnly=false',
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -60,7 +58,7 @@ export default function AdminOfferingsPage() {
   const toggleActive = async (id: string, currentState: boolean) => {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/offerings/${id}`, {
+      const response = await fetch(`/api/offerings/${id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -143,13 +141,17 @@ export default function AdminOfferingsPage() {
             No hay ofertas registradas
           </div>
         ) : (
-          offerings.map((offering) => (
-            <div
-              key={offering.id}
-              className={`bg-white rounded-lg shadow-sm border-2 p-6 ${
-                offering.active ? 'border-green-200' : 'border-gray-200'
-              }`}
-            >
+          offerings.map((offering) => {
+            const variants = offering.variants ?? offering.priceVariants ?? [];
+            const schedules = offering.schedules ?? [];
+
+            return (
+              <div
+                key={offering.id}
+                className={`bg-white rounded-lg shadow-sm border-2 p-6 ${
+                  offering.active ? 'border-green-200' : 'border-gray-200'
+                }`}
+              >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -179,27 +181,28 @@ export default function AdminOfferingsPage() {
                   </div>
                 )}
 
-                {offering.priceVariants && offering.priceVariants.length > 0 && (
+                {variants.length > 0 && (
                   <div className="text-sm">
                     <span className="text-gray-500">Variantes:</span>
                     <div className="mt-1 space-y-1">
-                      {offering.priceVariants.map((variant, idx) => (
-                        <div key={idx} className="flex justify-between text-xs">
+                      {variants.map((variant) => (
+                        <div
+                          key={variant.id ?? variant.name}
+                          className="flex justify-between text-xs"
+                        >
                           <span>{variant.name}</span>
-                          <span className="font-medium">
-                            {formatCurrency(variant.price)}
-                          </span>
+                          <span className="font-medium">{formatCurrency(variant.price)}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {offering.schedules.length > 0 && (
+                {schedules.length > 0 && (
                   <div className="text-sm">
                     <span className="text-gray-500">Horario:</span>
                     <div className="text-xs mt-1">
-                      {offering.schedules[0].startTime} - {offering.schedules[0].endTime}
+                      {schedules[0].startTime} - {schedules[0].endTime}
                     </div>
                   </div>
                 )}
@@ -221,7 +224,8 @@ export default function AdminOfferingsPage() {
                 </button>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

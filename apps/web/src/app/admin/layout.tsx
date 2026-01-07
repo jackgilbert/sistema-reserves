@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function AdminLayout({
@@ -14,11 +14,9 @@ export default function AdminLayout({
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Si estamos en la página de login, no verificar autenticación
-  const isLoginPage = pathname === '/admin/login';
-
   useEffect(() => {
-    if (isLoginPage) {
+    // El login no debe estar protegido por este layout.
+    if (pathname === '/admin/login') {
       setLoading(false);
       return;
     }
@@ -34,7 +32,7 @@ export default function AdminLayout({
 
     setUser(JSON.parse(userData));
     setLoading(false);
-  }, [router, isLoginPage]);
+  }, [router, pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -42,8 +40,7 @@ export default function AdminLayout({
     router.push('/admin/login');
   };
 
-  // Si estamos en la página de login, mostrar solo el contenido sin el layout
-  if (isLoginPage) {
+  if (pathname === '/admin/login') {
     return <>{children}</>;
   }
 

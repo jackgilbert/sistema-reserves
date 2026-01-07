@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { customAlphabet } from 'nanoid';
+import { BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH } from '../common/constants';
+import { BookingRepository } from '../common/repositories/booking.repository';
 
-const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
+const nanoid = customAlphabet(BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH);
 
 export interface CreateBookingFromHoldDto {
   holdId: string;
@@ -14,21 +16,36 @@ export interface CreateBookingFromHoldDto {
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly prisma: PrismaClient) {}
+  private readonly logger = new Logger(BookingsService.name);
+  
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly bookingRepository: BookingRepository,
+  ) {}
 
   /**
    * Generar código único para la reserva
+   * Retry logic to handle race conditions
    */
-  private async generateCode(): Promise<string> {
-    let code = nanoid();
-    let exists = await this.prisma.booking.findUnique({ where: { code } });
+  private async generateCode(maxRetries = 5): Promise<string> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const code = nanoid();
+      
+      // Check uniqueness
+      const exists = await this.prisma.booking.findUnique({ 
+        where: { code },
+        select: { id: true },
+      });
 
-    while (exists) {
-      code = nanoid();
-      exists = await this.prisma.booking.findUnique({ where: { code } });
+      if (!exists) {
+        return code;
+      }
+      
+      // Log collision for monitoring
+      this.logger.warn(`Booking code collision detected: ${code} (attempt ${attempt + 1}/${maxRetries})`);
     }
 
-    return code;
+    throw new Error('Failed to generate unique booking code after maximum retries');
   }
 
   /**
@@ -156,66 +173,23 @@ export class BookingsService {
    * Listar todas las reservas del tenant
    */
   async findAll(tenant: TenantContext): Promise<unknown[]> {
-    const bookings = await this.prisma.booking.findMany({
-      where: {
-        tenantId: tenant.tenantId,
-      },
-      include: {
-        offering: {
-          select: {
-            name: true,
-            type: true,
-          },
-        },
-        items: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    return bookings;
+    return this.bookingRepository.findAll(tenant);
   }
 
   /**
    * Obtener una reserva por código
    */
   async findByCode(code: string, tenant: TenantContext): Promise<unknown> {
-    const booking = await this.prisma.booking.findFirst({
-      where: {
-        tenantId: tenant.tenantId,
-        code,
-      },
-      include: {
-        offering: true,
-        items: true,
-      },
-    });
-
-    if (!booking) {
-      throw new NotFoundException('Reserva no encontrada');
-    }
-
-    return booking;
+    return this.bookingRepository.findByCodeOrFail(code, tenant);
   }
 
   /**
    * Cancelar una reserva
    */
   async cancel(bookingId: string, tenant: TenantContext) {
-    const booking = await this.prisma.booking.findFirst({
-      where: {
-        tenantId: tenant.tenantId,
-        id: bookingId,
-      },
-      include: {
-        items: true,
-      },
+    const booking = await this.bookingRepository.findByIdOrFail(bookingId, tenant, {
+      items: true,
     });
-
-    if (!booking) {
-      throw new NotFoundException('Reserva no encontrada');
-    }
 
     if (booking.status === 'CANCELLED') {
       throw new BadRequestException('La reserva ya está cancelada');

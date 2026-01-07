@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { differenceInDays, startOfDay } from 'date-fns';
+import { BookingRepository } from '../common/repositories/booking.repository';
 
 export interface CheckInDto {
   code: string;
@@ -10,18 +11,21 @@ export interface CheckInDto {
 
 @Injectable()
 export class CheckinService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly bookingRepository: BookingRepository,
+  ) {}
 
   /**
    * Hacer check-in de una reserva por código
    */
   async checkIn(code: string, scannedBy: string | null, tenant: TenantContext) {
     // Buscar booking
-    const booking = await this.prisma.booking.findFirst({
-      where: {
-        tenantId: tenant.tenantId,
-        code,
-      },
+    const booking = await this.bookingRepository.findByCodeOrFail(code, tenant);
+    
+    // Load check-in events
+    const bookingWithEvents = await this.prisma.booking.findUnique({
+      where: { id: booking.id },
       include: {
         offering: {
           select: {
@@ -37,29 +41,29 @@ export class CheckinService {
       },
     });
 
-    if (!booking) {
-      throw new NotFoundException('Reserva no encontrada');
+    if (!bookingWithEvents) {
+      throw new NotFoundException('Booking data not found');
     }
 
     // Verificar estado
-    if (booking.status === 'CANCELLED') {
+    if (bookingWithEvents.status === 'CANCELLED') {
       throw new BadRequestException('Esta reserva está cancelada');
     }
 
-    if (booking.status !== 'CONFIRMED') {
+    if (bookingWithEvents.status !== 'CONFIRMED') {
       throw new BadRequestException('Esta reserva no está confirmada');
     }
 
     const now = new Date();
 
     // Validar que el check-in sea en el día correcto (±1 día de flexibilidad)
-    const slotDate = startOfDay(booking.slotStart);
+    const slotDate = startOfDay(bookingWithEvents.slotStart);
     const todayDate = startOfDay(now);
     const daysDiff = Math.abs(differenceInDays(slotDate, todayDate));
 
     if (daysDiff > 1) {
       throw new BadRequestException(
-        `Esta reserva es para el ${booking.slotStart.toLocaleDateString()}. No se puede usar hoy.`,
+        `Esta reserva es para el ${bookingWithEvents.slotStart.toLocaleDateString()}. No se puede usar hoy.`,
       );
     }
 
@@ -69,7 +73,7 @@ export class CheckinService {
       const event = await tx.checkInEvent.create({
         data: {
           tenantId: tenant.tenantId,
-          bookingId: booking.id,
+          bookingId: bookingWithEvents.id,
           scannedBy,
           location: 'entrance',
           metadata: {},
@@ -77,9 +81,10 @@ export class CheckinService {
       });
 
       // 2. Actualizar estado del booking a USED
+      // 2. Marcar booking como USED
       await tx.booking.update({
         where: {
-          id: booking.id,
+          id: bookingWithEvents.id,
         },
         data: {
           status: 'USED',
@@ -92,17 +97,17 @@ export class CheckinService {
 
     return {
       success: true,
-      bookingId: booking.id,
-      code: booking.code,
-      customerName: booking.customerName,
-      customerEmail: booking.customerEmail,
-      offering: booking.offering.name,
-      slotStart: booking.slotStart.toISOString(),
-      slotEnd: booking.slotEnd.toISOString(),
-      quantity: booking.quantity,
+      bookingId: bookingWithEvents.id,
+      code: bookingWithEvents.code,
+      customerName: bookingWithEvents.customerName,
+      customerEmail: bookingWithEvents.customerEmail,
+      offering: bookingWithEvents.offering.name,
+      slotStart: bookingWithEvents.slotStart.toISOString(),
+      slotEnd: bookingWithEvents.slotEnd.toISOString(),
+      quantity: bookingWithEvents.quantity,
       status: 'USED',
       checkedInAt: checkInEvent.scannedAt.toISOString(),
-      previousCheckIns: booking.checkInEvents.length,
+      previousCheckIns: bookingWithEvents.checkInEvents.length,
     };
   }
 
@@ -110,11 +115,11 @@ export class CheckinService {
    * Verificar estado de una reserva (sin hacer check-in)
    */
   async verifyBooking(code: string, tenant: TenantContext) {
-    const booking = await this.prisma.booking.findFirst({
-      where: {
-        tenantId: tenant.tenantId,
-        code,
-      },
+    const booking = await this.bookingRepository.findByCodeOrFail(code, tenant);
+    
+    // Load check-in events
+    const bookingWithEvents = await this.prisma.booking.findUnique({
+      where: { id: booking.id },
       include: {
         offering: {
           select: {
@@ -126,20 +131,20 @@ export class CheckinService {
       },
     });
 
-    if (!booking) {
-      throw new NotFoundException('Reserva no encontrada');
+    if (!bookingWithEvents) {
+      throw new NotFoundException('Booking data not found');
     }
 
     return {
-      code: booking.code,
-      status: booking.status,
-      customerName: booking.customerName,
-      customerEmail: booking.customerEmail,
-      offering: booking.offering.name,
-      slotStart: booking.slotStart.toISOString(),
-      slotEnd: booking.slotEnd.toISOString(),
-      quantity: booking.quantity,
-      checkInEvents: booking.checkInEvents.map((event) => ({
+      code: bookingWithEvents.code,
+      status: bookingWithEvents.status,
+      customerName: bookingWithEvents.customerName,
+      customerEmail: bookingWithEvents.customerEmail,
+      offering: bookingWithEvents.offering.name,
+      slotStart: bookingWithEvents.slotStart.toISOString(),
+      slotEnd: bookingWithEvents.slotEnd.toISOString(),
+      quantity: bookingWithEvents.quantity,
+      checkInEvents: bookingWithEvents.checkInEvents.map((event) => ({
         scannedAt: event.scannedAt.toISOString(),
         scannedBy: event.scannedBy,
       })),
