@@ -70,7 +70,13 @@ export class TenantMiddleware implements NestMiddleware {
         error,
       });
 
-      throw new InternalServerErrorException('Error al resolver el tenant');
+      const isProduction = process.env.NODE_ENV === 'production';
+      const detail =
+        !isProduction && (error as any)?.message
+          ? `: ${(error as any).message}`
+          : '';
+
+      throw new InternalServerErrorException(`Error al resolver el tenant${detail}`);
     }
   }
 }
