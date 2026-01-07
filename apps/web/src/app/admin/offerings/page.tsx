@@ -219,9 +219,12 @@ export default function AdminOfferingsPage() {
                 >
                   {offering.active ? 'Desactivar' : 'Activar'}
                 </button>
-                <button className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100">
+                <Link
+                  href={`/admin/offerings/${offering.id}`}
+                  className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-md hover:bg-gray-100 text-center"
+                >
                   Editar
-                </button>
+                </Link>
               </div>
             </div>
             );

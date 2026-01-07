@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, Booking } from '@/lib/api';
 import { formatPrice, formatDate, formatTime } from '@/lib/utils';
+import QRCode from 'qrcode';
 
 export default function ConfirmPage({ params }: { params: { code: string } }) {
   const router = useRouter();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadBooking() {
@@ -25,6 +28,37 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
     }
     loadBooking();
   }, [params.code]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function generateQr() {
+      if (!booking?.code) return;
+      setQrError(null);
+
+      try {
+        // Encodamos SOLO el código para que el escáner admin lo pueda consumir directamente.
+        const dataUrl = await QRCode.toDataURL(booking.code, {
+          width: 192,
+          margin: 1,
+          errorCorrectionLevel: 'M',
+        });
+
+        if (!cancelled) setQrDataUrl(dataUrl);
+      } catch (e) {
+        if (!cancelled) {
+          setQrDataUrl(null);
+          setQrError('No se pudo generar el código QR');
+        }
+      }
+    }
+
+    generateQr();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [booking?.code]);
 
   if (loading) {
     return (
@@ -83,12 +117,23 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
           {/* QR Code */}
           <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-8 text-center">
             <div className="bg-white inline-block p-6 rounded-lg">
-              {/* Aquí iría el QR real - por ahora un placeholder */}
-              <div className="w-48 h-48 bg-gray-200 flex items-center justify-center rounded">
-                <svg className="w-32 h-32 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                </svg>
-              </div>
+              {qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrDataUrl}
+                  alt={`QR de la reserva ${booking.code}`}
+                  className="w-48 h-48 rounded"
+                />
+              ) : (
+                <div className="w-48 h-48 bg-gray-200 flex items-center justify-center rounded">
+                  <div className="text-center px-4">
+                    <div className="text-3xl mb-2">⚠️</div>
+                    <div className="text-sm text-gray-600">
+                      {qrError || 'Generando QR...'}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <p className="text-white mt-4 font-medium">
               Muestra este código en la entrada

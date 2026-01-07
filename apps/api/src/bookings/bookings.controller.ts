@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, Param, Headers, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Headers,
+  Patch,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { BookingsService, CreateBookingFromHoldDto } from './bookings.service';
 import { TenantService } from '../tenant/tenant.service';
@@ -21,7 +29,9 @@ export class BookingsController {
     @Body() dto: CreateBookingFromHoldDto,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.bookingsService.createBookingFromHold(
       dto.holdId,
       dto.email,
@@ -40,7 +50,9 @@ export class BookingsController {
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
   ): Promise<unknown> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.bookingsService.findByCode(code, tenant);
   }
 
@@ -53,7 +65,9 @@ export class BookingsController {
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
   ): Promise<unknown> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.bookingsService.findByCode(code, tenant);
   }
 
@@ -66,8 +80,12 @@ export class BookingsController {
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
-    const booking = await this.bookingsService.findByCode(code, tenant) as { id: string };
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
+    const booking = (await this.bookingsService.findByCode(code, tenant)) as {
+      id: string;
+    };
     await this.bookingsService.cancel(booking.id, tenant);
     return { message: 'Reserva cancelada exitosamente' };
   }
@@ -81,8 +99,12 @@ export class BookingsController {
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
   ) {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
-    const booking = (await this.bookingsService.findByCode(code, tenant)) as { id: string };
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
+    const booking = (await this.bookingsService.findByCode(code, tenant)) as {
+      id: string;
+    };
     await this.bookingsService.cancel(booking.id, tenant);
     return { message: 'Reserva cancelada exitosamente' };
   }
@@ -94,7 +116,9 @@ export class BookingsController {
   async listBookings(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<unknown[]> {
-    const tenant = await this.tenantService.resolveTenantByDomain(domain || 'localhost');
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
     return this.bookingsService.findAll(tenant);
   }
 }

@@ -19,14 +19,16 @@ export class TasksService {
   @Cron('*/15 * * * *')
   async releaseExpiredHolds() {
     if (!this.cronEnabled) return;
-    
+
     this.logger.log('Iniciando liberación de holds expirados...');
-    
+
     try {
       const released = await this.holdsService.releaseExpiredHolds();
-      
+
       if (released.released > 0) {
-        this.logger.log(`${released.released} holds expirados liberados exitosamente`);
+        this.logger.log(
+          `${released.released} holds expirados liberados exitosamente`,
+        );
       } else {
         this.logger.debug('No hay holds expirados para liberar');
       }
@@ -42,9 +44,9 @@ export class TasksService {
   @Cron('0 3 * * *')
   async cleanOldCheckInEvents() {
     if (!this.cronEnabled) return;
-    
+
     this.logger.log('Limpiando eventos de check-in antiguos...');
-    
+
     // TODO: Implementar limpieza de eventos antiguos
     this.logger.debug('Limpieza de eventos programada');
   }
@@ -56,9 +58,9 @@ export class TasksService {
   @Cron('0 1 * * *')
   async generateDailyReports() {
     if (!this.cronEnabled) return;
-    
+
     this.logger.log('Generando reportes diarios...');
-    
+
     // TODO: Implementar generación de reportes
     this.logger.debug('Generación de reportes programada');
   }

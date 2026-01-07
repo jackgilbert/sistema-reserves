@@ -20,19 +20,30 @@ export class InstancesController {
 
   @Post()
   @ApiOperation({ summary: 'Crear nueva instancia' })
-  create(@Body() createInstanceDto: CreateInstanceDto): Promise<Instance & { domains: Domain[] }> {
+  create(
+    @Body() createInstanceDto: CreateInstanceDto,
+  ): Promise<Instance & { domains: Domain[] }> {
     return this.instancesService.create(createInstanceDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar todas las instancias' })
-  findAll(): Promise<Array<Instance & { domains: Domain[]; _count: { offerings: number; bookings: number; users: number } }>> {
+  findAll(): Promise<
+    Array<
+      Instance & {
+        domains: Domain[];
+        _count: { offerings: number; bookings: number; users: number };
+      }
+    >
+  > {
     return this.instancesService.findAll();
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener instancia por ID' })
-  findOne(@Param('id') id: string): Promise<(Instance & { domains: Domain[] }) | null> {
+  findOne(
+    @Param('id') id: string,
+  ): Promise<(Instance & { domains: Domain[] }) | null> {
     return this.instancesService.findOne(id);
   }
 

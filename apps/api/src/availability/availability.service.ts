@@ -1,7 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
-import { startOfDay, endOfDay, addDays, parseISO, setHours, setMinutes, addMinutes, differenceInDays } from 'date-fns';
+import {
+  startOfDay,
+  endOfDay,
+  addDays,
+  parseISO,
+  setHours,
+  setMinutes,
+  addMinutes,
+  differenceInDays,
+} from 'date-fns';
 import { MAX_AVAILABILITY_DATE_RANGE_DAYS } from '../common/constants';
 
 export interface TimeSlot {
@@ -33,7 +46,9 @@ export class AvailabilityService {
       throw new BadRequestException('End date must be after start date');
     }
     if (daysDiff > MAX_AVAILABILITY_DATE_RANGE_DAYS) {
-      throw new BadRequestException(`Date range cannot exceed ${MAX_AVAILABILITY_DATE_RANGE_DAYS} days`);
+      throw new BadRequestException(
+        `Date range cannot exceed ${MAX_AVAILABILITY_DATE_RANGE_DAYS} days`,
+      );
     }
 
     // Buscar offering
@@ -72,7 +87,7 @@ export class AvailabilityService {
 
     // Build lookup map for O(1) access
     const bucketMap = new Map(
-      buckets.map((b) => [b.slotStart.toISOString(), b])
+      buckets.map((b) => [b.slotStart.toISOString(), b]),
     );
 
     const availability: Record<string, TimeSlot[]> = {};
@@ -84,7 +99,12 @@ export class AvailabilityService {
 
       // Verificar si el día está en el schedule
       if (schedule.daysOfWeek.includes(dayOfWeek)) {
-        const slots = this.generateSlotsForDay(currentDate, offering, schedule, bucketMap);
+        const slots = this.generateSlotsForDay(
+          currentDate,
+          offering,
+          schedule,
+          bucketMap,
+        );
         availability[currentDate.toISOString().split('T')[0]] = slots;
       }
 
@@ -100,7 +120,12 @@ export class AvailabilityService {
   private generateSlotsForDay(
     date: Date,
     offering: { id: string; capacity: number | null; basePrice: number },
-    schedule: { startTime: string; endTime: string; slotDuration: number; daysOfWeek: number[] },
+    schedule: {
+      startTime: string;
+      endTime: string;
+      slotDuration: number;
+      daysOfWeek: number[];
+    },
     bucketMap: Map<string, { heldCapacity: number; soldCapacity: number }>,
   ): TimeSlot[] {
     const slots: TimeSlot[] = [];

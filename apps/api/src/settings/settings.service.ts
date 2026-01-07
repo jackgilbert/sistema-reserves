@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import {
@@ -47,7 +51,7 @@ export class SettingsService {
     tenant: TenantContext,
   ): Promise<FeatureFlags> {
     const current = await this.getFeatureFlags(tenant);
-    
+
     // Deep merge de los nuevos valores
     const updated = this.deepMerge(current, dto);
 
@@ -80,7 +84,7 @@ export class SettingsService {
   ): Promise<boolean> {
     const flags = await this.getFeatureFlags(tenant);
     const value = this.getNestedValue(flags, featurePath);
-    
+
     return value === true;
   }
 
@@ -116,7 +120,8 @@ export class SettingsService {
       general: {
         businessName: instance.name,
         businessType: extendedSettings.general?.businessType || 'other',
-        contactEmail: extendedSettings.general?.contactEmail || 'info@example.com',
+        contactEmail:
+          extendedSettings.general?.contactEmail || 'info@example.com',
         contactPhone: extendedSettings.general?.contactPhone,
         address: extendedSettings.general?.address,
         description: extendedSettings.general?.description,
@@ -137,7 +142,8 @@ export class SettingsService {
       },
       policies: extendedSettings.policies || DEFAULT_TENANT_SETTINGS.policies,
       booking: extendedSettings.booking || DEFAULT_TENANT_SETTINGS.booking,
-      notifications: extendedSettings.notifications || DEFAULT_TENANT_SETTINGS.notifications,
+      notifications:
+        extendedSettings.notifications || DEFAULT_TENANT_SETTINGS.notifications,
       integrations: {
         stripeEnabled: !!instance.stripeAccount,
         stripePublicKey: extendedSettings.integrations?.stripePublicKey,
@@ -174,16 +180,18 @@ export class SettingsService {
 
     if (dto.branding) {
       if (dto.branding.logo !== undefined) updates.logo = dto.branding.logo;
-      if (dto.branding.primaryColor) updates.primaryColor = dto.branding.primaryColor;
-      if (dto.branding.secondaryColor) updates.secondaryColor = dto.branding.secondaryColor;
+      if (dto.branding.primaryColor)
+        updates.primaryColor = dto.branding.primaryColor;
+      if (dto.branding.secondaryColor)
+        updates.secondaryColor = dto.branding.secondaryColor;
     }
 
     // Actualizar extendedSettings con el resto de la configuración
     const extendedSettings = this.deepMerge(currentSettings, dto);
-    
+
     // Remover campos que se guardan en columnas dedicadas
     delete extendedSettings.general?.businessName;
-    
+
     updates.extendedSettings = {
       general: extendedSettings.general,
       regional: {
@@ -220,7 +228,9 @@ export class SettingsService {
   /**
    * Obtener configuración pública (sin datos sensibles)
    */
-  async getPublicSettings(tenant: TenantContext): Promise<Partial<TenantSettings>> {
+  async getPublicSettings(
+    tenant: TenantContext,
+  ): Promise<Partial<TenantSettings>> {
     const settings = await this.getSettings(tenant);
     const flags = await this.getFeatureFlags(tenant);
 
@@ -238,11 +248,13 @@ export class SettingsService {
       },
       seo: settings.seo,
       // Agregar info de features habilitadas
-      ...({ features: {
-        bookingsEnabled: flags.bookings.enabled,
-        checkInEnabled: flags.checkIn.enabled,
-        paymentsEnabled: flags.payments.enabled,
-      }} as any),
+      ...({
+        features: {
+          bookingsEnabled: flags.bookings.enabled,
+          checkInEnabled: flags.checkIn.enabled,
+          paymentsEnabled: flags.payments.enabled,
+        },
+      } as any),
     };
   }
 
@@ -251,7 +263,7 @@ export class SettingsService {
    */
   private deepMerge(target: any, source: any): any {
     const output = { ...target };
-    
+
     if (this.isObject(target) && this.isObject(source)) {
       Object.keys(source).forEach((key) => {
         if (this.isObject(source[key])) {
@@ -265,14 +277,17 @@ export class SettingsService {
         }
       });
     }
-    
+
     return output;
   }
 
   /**
    * Helper: Merge con valores por defecto
    */
-  private mergeWithDefaults(partial: Partial<FeatureFlags>, defaults: FeatureFlags): FeatureFlags {
+  private mergeWithDefaults(
+    partial: Partial<FeatureFlags>,
+    defaults: FeatureFlags,
+  ): FeatureFlags {
     return this.deepMerge(defaults, partial);
   }
 
@@ -305,9 +320,11 @@ export class SettingsService {
     overwrite = false,
   ): Promise<{ featureFlags: FeatureFlags; settings: TenantSettings }> {
     const template = SETTINGS_TEMPLATES[templateType];
-    
+
     if (!template) {
-      throw new BadRequestException(`Plantilla "${templateType}" no encontrada`);
+      throw new BadRequestException(
+        `Plantilla "${templateType}" no encontrada`,
+      );
     }
 
     if (overwrite) {
@@ -328,7 +345,7 @@ export class SettingsService {
       // Merge con valores existentes
       const currentFlags = await this.getFeatureFlags(tenant);
       const mergedFlags = this.deepMerge(currentFlags, template.featureFlags);
-      
+
       await this.prisma.instance.update({
         where: { id: tenant.tenantId },
         data: { featureFlags: mergedFlags as any },
@@ -377,7 +394,10 @@ export class SettingsService {
     }
 
     if (featureFlags && settings) {
-      const consistencyValidation = this.validator.validateConsistency(featureFlags, settings);
+      const consistencyValidation = this.validator.validateConsistency(
+        featureFlags,
+        settings,
+      );
       warnings.push(...consistencyValidation.warnings);
     }
 
@@ -429,7 +449,7 @@ export class SettingsService {
         data.featureFlags,
         data.settings as any,
       );
-      
+
       if (!validation.valid) {
         return {
           success: false,
@@ -453,7 +473,11 @@ export class SettingsService {
     } catch (error) {
       return {
         success: false,
-        errors: [error instanceof Error ? error.message : 'Error desconocido al importar'],
+        errors: [
+          error instanceof Error
+            ? error.message
+            : 'Error desconocido al importar',
+        ],
       };
     }
   }
@@ -481,8 +505,14 @@ export class SettingsService {
       settings: await this.getSettings(tenant),
     };
 
-    const flagsDiff = this.findDifferences(current.featureFlags, template.featureFlags);
-    const settingsDiff = this.findDifferences(current.settings, template.settings);
+    const flagsDiff = this.findDifferences(
+      current.featureFlags,
+      template.featureFlags,
+    );
+    const settingsDiff = this.findDifferences(
+      current.settings,
+      template.settings,
+    );
 
     return {
       differences: {
@@ -490,7 +520,8 @@ export class SettingsService {
         settings: settingsDiff,
       },
       summary: {
-        totalDifferences: Object.keys(flagsDiff).length + Object.keys(settingsDiff).length,
+        totalDifferences:
+          Object.keys(flagsDiff).length + Object.keys(settingsDiff).length,
         flagsDifferent: Object.keys(flagsDiff).length,
         settingsDifferent: Object.keys(settingsDiff).length,
       },
@@ -500,7 +531,11 @@ export class SettingsService {
   /**
    * Helper: Encontrar diferencias entre dos objetos
    */
-  private findDifferences(current: any, template: any, prefix = ''): Record<string, any> {
+  private findDifferences(
+    current: any,
+    template: any,
+    prefix = '',
+  ): Record<string, any> {
     const differences: Record<string, any> = {};
 
     const allKeys = new Set([

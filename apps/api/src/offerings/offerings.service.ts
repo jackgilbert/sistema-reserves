@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 
@@ -26,8 +30,10 @@ export interface UpdateOfferingDto {
   name?: string;
   description?: string;
   basePrice?: number;
+  currency?: string;
   capacity?: number;
   active?: boolean;
+  priceVariants?: Array<{ name: string; price: number; description?: string }>;
 }
 
 export interface CreateResourceDto {
@@ -42,8 +48,22 @@ export class OfferingsService {
   /**
    * Crear nueva offering
    */
-  async create(dto: CreateOfferingDto, tenant: TenantContext): Promise<unknown> {
-    const { slug, name, description, type, basePrice, currency, capacity, active, schedule, priceVariants } = dto;
+  async create(
+    dto: CreateOfferingDto,
+    tenant: TenantContext,
+  ): Promise<unknown> {
+    const {
+      slug,
+      name,
+      description,
+      type,
+      basePrice,
+      currency,
+      capacity,
+      active,
+      schedule,
+      priceVariants,
+    } = dto;
 
     // Verificar que el slug no exista
     const existing = await this.prisma.offering.findFirst({
@@ -54,7 +74,9 @@ export class OfferingsService {
     });
 
     if (existing) {
-      throw new BadRequestException(`Ya existe una offering con el slug "${slug}"`);
+      throw new BadRequestException(
+        `Ya existe una offering con el slug "${slug}"`,
+      );
     }
 
     // Crear offering con schedule opcional
@@ -121,8 +143,11 @@ export class OfferingsService {
    * Obtener una offering por ID
    */
   async findOne(id: string, tenant: TenantContext): Promise<unknown> {
-    console.log(`🔍 [OfferingsService] Buscando offering:`, { id, tenantId: tenant.tenantId });
-    
+    console.log(`🔍 [OfferingsService] Buscando offering:`, {
+      id,
+      tenantId: tenant.tenantId,
+    });
+
     const offering = await this.prisma.offering.findFirst({
       where: {
         tenantId: tenant.tenantId,
@@ -136,7 +161,10 @@ export class OfferingsService {
       },
     });
 
-    console.log(`📊 [OfferingsService] Resultado:`, offering ? 'ENCONTRADO' : 'NO ENCONTRADO');
+    console.log(
+      `📊 [OfferingsService] Resultado:`,
+      offering ? 'ENCONTRADO' : 'NO ENCONTRADO',
+    );
 
     if (!offering) {
       // Log all offerings for this tenant to help debug
@@ -144,7 +172,10 @@ export class OfferingsService {
         where: { tenantId: tenant.tenantId },
         select: { id: true, slug: true, name: true },
       });
-      console.log(`📋 [OfferingsService] Offerings disponibles para tenant ${tenant.tenantId}:`, allOfferings);
+      console.log(
+        `📋 [OfferingsService] Offerings disponibles para tenant ${tenant.tenantId}:`,
+        allOfferings,
+      );
       throw new NotFoundException('Offering no encontrada');
     }
 
@@ -176,7 +207,11 @@ export class OfferingsService {
   /**
    * Activar/desactivar offering
    */
-  async toggleActive(id: string, active: boolean, tenant: TenantContext): Promise<unknown> {
+  async toggleActive(
+    id: string,
+    active: boolean,
+    tenant: TenantContext,
+  ): Promise<unknown> {
     await this.findOne(id, tenant);
 
     const updated = await this.prisma.offering.update({
@@ -192,16 +227,57 @@ export class OfferingsService {
   }
 
   /**
+   * Actualizar campos de una offering
+   */
+  async update(
+    id: string,
+    dto: UpdateOfferingDto,
+    tenant: TenantContext,
+  ): Promise<unknown> {
+    await this.findOne(id, tenant);
+
+    const data: Record<string, any> = {};
+
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.description !== undefined) data.description = dto.description || null;
+    if (dto.basePrice !== undefined) data.basePrice = dto.basePrice;
+    if (dto.currency !== undefined) data.currency = dto.currency;
+    if (dto.capacity !== undefined) data.capacity = dto.capacity ?? null;
+    if (dto.active !== undefined) data.active = dto.active;
+    if (dto.priceVariants !== undefined) data.priceVariants = dto.priceVariants;
+
+    if (Object.keys(data).length === 0) {
+      return this.findOne(id, tenant);
+    }
+
+    return this.prisma.offering.update({
+      where: { id },
+      data,
+      include: {
+        schedules: true,
+        resources: { where: { active: true } },
+      },
+    });
+  }
+
+  /**
    * Crear recursos para una offering tipo RESOURCE
    */
-  async createResources(dto: CreateResourceDto, tenant: TenantContext): Promise<unknown> {
+  async createResources(
+    dto: CreateResourceDto,
+    tenant: TenantContext,
+  ): Promise<unknown> {
     const { offeringId, resources } = dto;
 
     // Verificar que la offering existe y es tipo RESOURCE
-    const offering = (await this.findOne(offeringId, tenant)) as { type: string };
+    const offering = (await this.findOne(offeringId, tenant)) as {
+      type: string;
+    };
 
     if (offering.type !== 'RESOURCE') {
-      throw new BadRequestException('Solo se pueden crear recursos para offerings tipo RESOURCE');
+      throw new BadRequestException(
+        'Solo se pueden crear recursos para offerings tipo RESOURCE',
+      );
     }
 
     // Crear recursos en batch

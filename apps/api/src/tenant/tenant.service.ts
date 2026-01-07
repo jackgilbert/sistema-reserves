@@ -5,7 +5,7 @@ import { TenantContext } from '@sistema-reservas/shared';
 @Injectable()
 export class TenantService {
   constructor(private readonly prisma: PrismaClient) {}
-  
+
   // Cache simple en memoria (en producción usar Redis)
   private domainCache = new Map<string, TenantContext>();
 
@@ -15,9 +15,7 @@ export class TenantService {
   async resolveTenantByDomain(domain: string): Promise<TenantContext> {
     // Validar que domain no sea undefined o vacío
     if (!domain) {
-      throw new NotFoundException(
-        `Dominio inválido o no proporcionado`,
-      );
+      throw new NotFoundException(`Dominio inválido o no proporcionado`);
     }
 
     // Normalizar dominios de desarrollo a 'localhost'
@@ -42,15 +40,12 @@ export class TenantService {
     // Si no se encuentra el dominio, buscar el primer dominio activo como fallback (desarrollo)
     if (!domainRecord) {
       domainRecord = await this.prisma.domain.findFirst({
-        where: { 
+        where: {
           instance: { active: true },
-          isPrimary: true 
+          isPrimary: true,
         },
         include: { instance: true },
-        orderBy: [
-          { isPrimary: 'desc' },
-          { domain: 'asc' },
-        ],
+        orderBy: [{ isPrimary: 'desc' }, { domain: 'asc' }],
       });
 
       if (!domainRecord) {
@@ -101,7 +96,7 @@ export class TenantService {
     ) {
       return 'localhost';
     }
-    
+
     return domain;
   }
 

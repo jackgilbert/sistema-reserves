@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { addMinutes } from 'date-fns';
@@ -39,32 +43,7 @@ export class HoldsService {
       // Usar transacción para garantizar consistencia
       const hold = await this.prisma.$transaction(async (tx) => {
         // 1. Buscar o crear inventory bucket
-      let bucket = await tx.inventoryBucket.findUnique({
-        where: {
-          tenantId_offeringId_slotStart: {
-            tenantId: tenant.tenantId,
-            offeringId,
-            slotStart,
-          },
-        },
-      });
-
-      // Si no existe, crear bucket con capacidad inicial
-      if (!bucket) {
-        bucket = await tx.inventoryBucket.create({
-          data: {
-            tenantId: tenant.tenantId,
-            offeringId,
-            slotStart,
-            slotEnd,
-            totalCapacity: offering.type === 'CAPACITY' ? offering.capacity || 0 : 1,
-            heldCapacity: 0,
-            soldCapacity: 0,
-          },
-        });
-
-        // Re-fetch para tener datos actualizados
-        bucket = await tx.inventoryBucket.findUnique({
+        let bucket = await tx.inventoryBucket.findUnique({
           where: {
             tenantId_offeringId_slotStart: {
               tenantId: tenant.tenantId,
@@ -74,52 +53,79 @@ export class HoldsService {
           },
         });
 
+        // Si no existe, crear bucket con capacidad inicial
         if (!bucket) {
-          throw new Error('Error al crear inventory bucket');
+          bucket = await tx.inventoryBucket.create({
+            data: {
+              tenantId: tenant.tenantId,
+              offeringId,
+              slotStart,
+              slotEnd,
+              totalCapacity:
+                offering.type === 'CAPACITY' ? offering.capacity || 0 : 1,
+              heldCapacity: 0,
+              soldCapacity: 0,
+            },
+          });
+
+          // Re-fetch para tener datos actualizados
+          bucket = await tx.inventoryBucket.findUnique({
+            where: {
+              tenantId_offeringId_slotStart: {
+                tenantId: tenant.tenantId,
+                offeringId,
+                slotStart,
+              },
+            },
+          });
+
+          if (!bucket) {
+            throw new Error('Error al crear inventory bucket');
+          }
         }
-      }
 
-      // 2. Verificar disponibilidad
-      const available = bucket.totalCapacity - bucket.heldCapacity - bucket.soldCapacity;
-      if (available < quantity) {
-        throw new ConflictException(
-          `No hay suficiente disponibilidad. Disponible: ${available}, Solicitado: ${quantity}`,
-        );
-      }
+        // 2. Verificar disponibilidad
+        const available =
+          bucket.totalCapacity - bucket.heldCapacity - bucket.soldCapacity;
+        if (available < quantity) {
+          throw new ConflictException(
+            `No hay suficiente disponibilidad. Disponible: ${available}, Solicitado: ${quantity}`,
+          );
+        }
 
-      // 3. Crear hold
-      const expiresAt = addMinutes(new Date(), 10);
-      const newHold = await tx.hold.create({
-        data: {
-          tenantId: tenant.tenantId,
-          offeringId,
-          slotStart,
-          slotEnd,
-          quantity,
-          expiresAt,
-          customerEmail: customerData.email || null,
-          customerName: customerData.name || null,
-          customerPhone: customerData.phone || null,
-          metadata: {},
-        },
-      });
-
-      // 4. Actualizar inventario (incrementar held)
-      await tx.inventoryBucket.update({
-        where: {
-          tenantId_offeringId_slotStart: {
+        // 3. Crear hold
+        const expiresAt = addMinutes(new Date(), 10);
+        const newHold = await tx.hold.create({
+          data: {
             tenantId: tenant.tenantId,
             offeringId,
             slotStart,
+            slotEnd,
+            quantity,
+            expiresAt,
+            customerEmail: customerData.email || null,
+            customerName: customerData.name || null,
+            customerPhone: customerData.phone || null,
+            metadata: {},
           },
-        },
-        data: {
-          heldCapacity: bucket.heldCapacity + quantity,
-        },
-      });
+        });
 
-      return newHold;
-    });
+        // 4. Actualizar inventario (incrementar held)
+        await tx.inventoryBucket.update({
+          where: {
+            tenantId_offeringId_slotStart: {
+              tenantId: tenant.tenantId,
+              offeringId,
+              slotStart,
+            },
+          },
+          data: {
+            heldCapacity: bucket.heldCapacity + quantity,
+          },
+        });
+
+        return newHold;
+      });
 
       return {
         id: hold.id,
@@ -132,7 +138,10 @@ export class HoldsService {
       };
     } catch (error) {
       console.error('Error in createHold:', error);
-      if (error instanceof NotFoundException || error instanceof ConflictException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
       throw new Error(`Failed to create hold: ${error.message}`);
@@ -193,7 +202,10 @@ export class HoldsService {
 
     for (const hold of expiredHolds) {
       const bucketKey = `${hold.tenantId}:${hold.offeringId}:${hold.slotStart.toISOString()}`;
-      bucketUpdates.set(bucketKey, (bucketUpdates.get(bucketKey) || 0) + hold.quantity);
+      bucketUpdates.set(
+        bucketKey,
+        (bucketUpdates.get(bucketKey) || 0) + hold.quantity,
+      );
       holdIds.push(hold.id);
     }
 

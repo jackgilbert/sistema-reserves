@@ -1,8 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { customAlphabet } from 'nanoid';
-import { BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH } from '../common/constants';
+import {
+  BOOKING_CODE_ALPHABET,
+  BOOKING_CODE_LENGTH,
+} from '../common/constants';
 import { BookingRepository } from '../common/repositories/booking.repository';
 
 const nanoid = customAlphabet(BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH);
@@ -17,7 +25,7 @@ export interface CreateBookingFromHoldDto {
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
-  
+
   constructor(
     private readonly prisma: PrismaClient,
     private readonly bookingRepository: BookingRepository,
@@ -30,9 +38,9 @@ export class BookingsService {
   private async generateCode(maxRetries = 5): Promise<string> {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       const code = nanoid();
-      
+
       // Check uniqueness
-      const exists = await this.prisma.booking.findUnique({ 
+      const exists = await this.prisma.booking.findUnique({
         where: { code },
         select: { id: true },
       });
@@ -40,12 +48,16 @@ export class BookingsService {
       if (!exists) {
         return code;
       }
-      
+
       // Log collision for monitoring
-      this.logger.warn(`Booking code collision detected: ${code} (attempt ${attempt + 1}/${maxRetries})`);
+      this.logger.warn(
+        `Booking code collision detected: ${code} (attempt ${attempt + 1}/${maxRetries})`,
+      );
     }
 
-    throw new Error('Failed to generate unique booking code after maximum retries');
+    throw new Error(
+      'Failed to generate unique booking code after maximum retries',
+    );
   }
 
   /**
@@ -187,9 +199,13 @@ export class BookingsService {
    * Cancelar una reserva
    */
   async cancel(bookingId: string, tenant: TenantContext) {
-    const booking = await this.bookingRepository.findByIdOrFail(bookingId, tenant, {
-      items: true,
-    });
+    const booking = await this.bookingRepository.findByIdOrFail(
+      bookingId,
+      tenant,
+      {
+        items: true,
+      },
+    );
 
     if (booking.status === 'CANCELLED') {
       throw new BadRequestException('La reserva ya está cancelada');

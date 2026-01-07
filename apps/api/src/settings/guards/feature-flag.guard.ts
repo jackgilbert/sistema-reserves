@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FEATURE_KEY } from '../decorators/require-feature.decorator';
 import { SettingsService } from '../settings.service';
@@ -29,10 +34,15 @@ export class FeatureFlagGuard implements CanActivate {
       throw new ForbiddenException('Tenant no identificado');
     }
 
-    const isEnabled = await this.settingsService.isFeatureEnabled(featurePath, tenant);
+    const isEnabled = await this.settingsService.isFeatureEnabled(
+      featurePath,
+      tenant,
+    );
 
     if (!isEnabled) {
-      throw new ForbiddenException(`La característica ${featurePath} no está habilitada`);
+      throw new ForbiddenException(
+        `La característica ${featurePath} no está habilitada`,
+      );
     }
 
     return true;

@@ -5,6 +5,13 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
+  // En desarrollo, facilitar el arranque si falta DATABASE_URL.
+  // En producción debe venir explícitamente configurada.
+  if (!process.env.DATABASE_URL && process.env.NODE_ENV !== 'production') {
+    process.env.DATABASE_URL =
+      'postgresql://reservas:reservas123@localhost:5432/sistema_reservas';
+  }
+
   const app = await NestFactory.create(AppModule);
 
   // Global exception filter - siempre retorna JSON
@@ -40,8 +47,12 @@ async function bootstrap() {
         /^https?:\/\/.*\.github\.dev(?::\d+)?$/,
       ];
 
-      const allowed = allowedOriginPatterns.some((pattern) => pattern.test(origin));
-      return allowed ? callback(null, true) : callback(new Error('Not allowed by CORS'));
+      const allowed = allowedOriginPatterns.some((pattern) =>
+        pattern.test(origin),
+      );
+      return allowed
+        ? callback(null, true)
+        : callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
   });

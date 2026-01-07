@@ -39,11 +39,10 @@ done
 # Asegurar schema y datos mínimos para desarrollo
 echo "🗄️  Verificando base de datos (schema/datos demo)..."
 
-# Si la tabla instances no existe, aplicar schema (no borra datos existentes)
-if ! docker exec sistema-reservas-db psql -U reservas -d sistema_reservas -tAc "select to_regclass('public.instances');" | grep -q "instances"; then
-    echo "⚙️  Aplicando schema (pnpm -C packages/db db:push)..."
-    pnpm -C packages/db db:push
-fi
+# Sincronizar schema (idempotente). Evita fallos por columnas nuevas faltantes
+# (por ejemplo: instances.extendedSettings).
+echo "⚙️  Sincronizando schema (pnpm -C packages/db db:push)..."
+pnpm -C packages/db db:push
 
 # Si no hay instancias, cargar seed demo (borra y recrea, pero sólo si está vacío)
 INSTANCE_COUNT=$(docker exec sistema-reservas-db psql -U reservas -d sistema_reservas -tAc "select count(*) from instances;" | tr -d '[:space:]')

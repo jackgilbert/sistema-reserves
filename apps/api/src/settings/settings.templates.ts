@@ -62,7 +62,8 @@ export const SETTINGS_TEMPLATES = {
         secondaryColor: '#7C3AED',
       },
       policies: {
-        cancellationPolicy: 'Cancelación gratuita hasta 24 horas antes de la visita.',
+        cancellationPolicy:
+          'Cancelación gratuita hasta 24 horas antes de la visita.',
         refundPolicy: 'Reembolso completo para cancelaciones elegibles.',
         minBookingNoticeHours: 2,
         maxBookingAdvanceDays: 30,
@@ -145,8 +146,10 @@ export const SETTINGS_TEMPLATES = {
         secondaryColor: '#F59E0B',
       },
       policies: {
-        cancellationPolicy: 'Cancelación hasta 24 horas antes. Después se pierde el depósito.',
-        refundPolicy: 'Reembolso del depósito solo para cancelaciones con 24h de anticipación.',
+        cancellationPolicy:
+          'Cancelación hasta 24 horas antes. Después se pierde el depósito.',
+        refundPolicy:
+          'Reembolso del depósito solo para cancelaciones con 24h de anticipación.',
         minBookingNoticeHours: 24,
         maxBookingAdvanceDays: 60,
       },
@@ -228,8 +231,10 @@ export const SETTINGS_TEMPLATES = {
         secondaryColor: '#EC4899',
       },
       policies: {
-        cancellationPolicy: 'Cancelación gratuita hasta 48 horas antes. Después 50% de reembolso.',
-        refundPolicy: 'Reembolso del 100% hasta 48h antes, 50% hasta 24h antes, 0% después.',
+        cancellationPolicy:
+          'Cancelación gratuita hasta 48 horas antes. Después 50% de reembolso.',
+        refundPolicy:
+          'Reembolso del 100% hasta 48h antes, 50% hasta 24h antes, 0% después.',
         minBookingNoticeHours: 48,
         maxBookingAdvanceDays: 90,
       },
@@ -311,7 +316,8 @@ export const SETTINGS_TEMPLATES = {
         secondaryColor: '#06B6D4',
       },
       policies: {
-        cancellationPolicy: 'Cancelación gratuita hasta 24 horas antes de la cita.',
+        cancellationPolicy:
+          'Cancelación gratuita hasta 24 horas antes de la cita.',
         refundPolicy: 'Reembolso completo para cancelaciones con aviso previo.',
         minBookingNoticeHours: 24,
         maxBookingAdvanceDays: 30,
