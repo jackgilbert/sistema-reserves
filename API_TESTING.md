@@ -23,6 +23,26 @@ Una vez que el API esté corriendo, visita:
 
 ## Ejemplos de Tests con curl
 
+### Redsys (merchantURL notify)
+
+Redsys envía la notificación (merchantURL) como `application/x-www-form-urlencoded` al endpoint:
+
+- Backend directo: `POST http://localhost:3001/payments/redsys/notify`
+- Vía Next proxy (recomendado si estás probando el flujo web): `POST http://localhost:3000/api/payments/redsys/notify`
+
+Para re-jugar (replay) una notificación capturada (por ejemplo de logs o del panel de Redsys), usa el helper:
+
+```bash
+TENANT_DOMAIN=localhost \
+TARGET_URL=http://localhost:3000/api/payments/redsys/notify \
+bash scripts/redsys-replay-notify.sh \
+  '<Ds_MerchantParameters_base64>' \
+  '<Ds_Signature_base64>' \
+  'HMAC_SHA256_V1'
+```
+
+Nota: en algunos entornos, por el encoding `x-www-form-urlencoded`, la firma base64 puede llegar con espacios en vez de `+`. El backend ya normaliza esto.
+
 ### 1. Instancias
 
 #### Listar instancias
