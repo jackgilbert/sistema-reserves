@@ -11,10 +11,40 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [slotVariantKey, setSlotVariantKey] = useState<string>('');
+  const [standardQty, setStandardQty] = useState(0);
+  const [variantQty, setVariantQty] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const slotVariants = Array.isArray(offering?.metadata?.slotVariants)
+    ? (offering?.metadata?.slotVariants as Array<{ key: string; label?: string }>).filter(
+        (v) => v && typeof v.key === 'string' && v.key.trim().length > 0,
+      )
+    : [];
+
+  const variants = offering?.priceVariants ?? [];
+  const normalizeVariantName = (name: string) => name.trim().toLowerCase();
+  const adultVariantName = variants.find((v) => {
+    const n = normalizeVariantName(v.name);
+    return n === 'adult' || n === 'adulto';
+  })?.name;
+  const includeStandard = !adultVariantName;
+  const effectiveStandardQty = includeStandard ? standardQty : 0;
+  const available = selectedSlot ? selectedSlot.available : 0;
+  const totalSelected =
+    effectiveStandardQty +
+    Object.values(variantQty).reduce((acc, n) => acc + (Number.isFinite(n) ? n : 0), 0);
+
+  const totalAmount =
+    (offering?.basePrice ?? 0) * effectiveStandardQty +
+    variants.reduce((acc, v) => acc + v.price * (variantQty[v.name] || 0), 0);
+
+  const clampChange = (current: number, next: number, otherSum: number) => {
+    const maxForThis = Math.max(0, available - otherSum);
+    return Math.max(0, Math.min(next, maxForThis));
+  };
 
   // Cargar oferta
   useEffect(() => {
@@ -31,16 +61,41 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
     loadOffering();
   }, [params.id]);
 
+  // Reset cantidades al cambiar de oferta
+  useEffect(() => {
+    if (!offering) return;
+    setVariantQty({});
+    const nextAdultVariantName = Array.isArray(offering.priceVariants)
+      ? (offering.priceVariants as Array<{ name: string; price: number }>).find((v) => {
+          const n = typeof v?.name === 'string' ? normalizeVariantName(v.name) : '';
+          return n === 'adult' || n === 'adulto';
+        })?.name
+      : undefined;
+    setStandardQty(nextAdultVariantName ? 0 : 1);
+
+    const initialVariantKey = slotVariants.length > 0 ? slotVariants[0].key : '';
+    setSlotVariantKey(initialVariantKey);
+    setSelectedSlot(null);
+  }, [offering?.id]);
+
+  // Reset selección al cambiar idioma
+  useEffect(() => {
+    setSelectedSlot(null);
+    setVariantQty({});
+    setStandardQty(includeStandard ? 1 : 0);
+  }, [slotVariantKey]);
+
   // Cargar disponibilidad cuando cambia la fecha
   useEffect(() => {
     if (!offering) return;
+    if (slotVariants.length > 0 && !slotVariantKey) return;
 
     async function loadAvailability() {
       setLoadingSlots(true);
       try {
         const startDate = toISODate(selectedDate);
         const endDate = toISODate(addDays(selectedDate, 1));
-        const data = await api.availability.get(params.id, startDate, endDate);
+        const data = await api.availability.get(params.id, startDate, endDate, slotVariantKey);
         
         // El API retorna un objeto con fechas como keys: { "2025-01-01": [...slots] }
         // Extraer los slots del primer día
@@ -55,10 +110,20 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
       }
     }
     loadAvailability();
-  }, [offering, selectedDate, params.id]);
+  }, [offering, selectedDate, params.id, slotVariantKey, slotVariants.length]);
 
   const handleReserve = async () => {
     if (!selectedSlot || !offering) return;
+
+    if (slotVariants.length > 0 && !slotVariantKey) {
+      setError('Selecciona un idioma');
+      return;
+    }
+
+    if (totalSelected < 1) {
+      setError('Selecciona al menos 1 entrada');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -66,14 +131,25 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
         offeringId: offering.id,
         slotStart: selectedSlot.start,
         slotEnd: selectedSlot.end,
-        quantity,
+        quantity: totalSelected,
+        slotVariantKey: slotVariantKey || undefined,
+        ticketQuantities: {
+          standard: effectiveStandardQty,
+          variants: variantQty,
+        },
       });
 
       // Guardar en sessionStorage y redirigir a checkout
       sessionStorage.setItem('currentHold', JSON.stringify({
         hold,
         offering,
-        quantity,
+        quantity: totalSelected,
+        slotVariantKey,
+        ticketQuantities: {
+          standard: effectiveStandardQty,
+          variants: variantQty,
+        },
+        totalAmount,
       }));
       
       router.push('/checkout');
@@ -167,6 +243,25 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
               <h2 className="text-xl font-semibold mb-4">
                 Horarios disponibles - {formatDate(selectedDate)}
               </h2>
+
+              {slotVariants.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Idioma
+                  </label>
+                  <select
+                    value={slotVariantKey}
+                    onChange={(e) => setSlotVariantKey(e.target.value)}
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    {slotVariants.map((v) => (
+                      <option key={v.key} value={v.key}>
+                        {v.label || v.key}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               
               {loadingSlots ? (
                 <div className="text-center py-8">
@@ -213,22 +308,72 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cantidad
                   </label>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-blue-500 transition-colors"
-                    >
-                      -
-                    </button>
-                    <span className="text-xl font-semibold w-12 text-center">
-                      {quantity}
-                    </span>
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="w-10 h-10 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-blue-500 transition-colors"
-                    >
-                      +
-                    </button>
+                  <div className="space-y-2">
+                    {includeStandard && (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="font-medium">Estándar</div>
+                          <div className="text-xs text-gray-600">{formatPrice(offering.basePrice, offering.currency)}</div>
+                        </div>
+                        <select
+                          value={standardQty}
+                          onChange={(e) => {
+                            const next = Number(e.target.value);
+                            const otherSum = totalSelected - standardQty;
+                            setStandardQty(clampChange(standardQty, next, otherSum));
+                          }}
+                          disabled={!selectedSlot}
+                          className="w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        >
+                          {(() => {
+                            const otherSum = totalSelected - standardQty;
+                            const maxForThis = selectedSlot ? Math.max(0, available - otherSum) : 0;
+                            const options: number[] = [];
+                            for (let i = 0; i <= Math.min(maxForThis, 20); i++) options.push(i);
+                            return options;
+                          })().map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {variants.map((v) => {
+                      const current = variantQty[v.name] || 0;
+                      return (
+                        <div key={v.name} className="flex items-center justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="font-medium">{v.name}</div>
+                            <div className="text-xs text-gray-600">{formatPrice(v.price, offering.currency)}</div>
+                          </div>
+                          <select
+                            value={current}
+                            onChange={(e) => {
+                              const next = Number(e.target.value);
+                              const otherSum = totalSelected - current;
+                              const clamped = clampChange(current, next, otherSum);
+                              setVariantQty((prev) => ({ ...prev, [v.name]: clamped }));
+                            }}
+                            disabled={!selectedSlot}
+                            className="w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                          >
+                            {(() => {
+                              const otherSum = totalSelected - current;
+                              const maxForThis = selectedSlot ? Math.max(0, available - otherSum) : 0;
+                              const options: number[] = [];
+                              for (let i = 0; i <= Math.min(maxForThis, 20); i++) options.push(i);
+                              return options;
+                            })().map((n) => (
+                              <option key={n} value={n}>
+                                {n}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -242,23 +387,19 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
 
                 <div className="border-t pt-4">
                   <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">Precio unitario</span>
-                    <span className="font-medium">
-                      {formatPrice(offering.basePrice, offering.currency)}
-                    </span>
+                    <span className="text-gray-600">Entradas</span>
+                    <span className="font-medium">{totalSelected}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-blue-600">
-                      {formatPrice(offering.basePrice * quantity, offering.currency)}
-                    </span>
+                    <span className="text-blue-600">{formatPrice(totalAmount, offering.currency)}</span>
                   </div>
                 </div>
               </div>
 
               <button
                 onClick={handleReserve}
-                disabled={!selectedSlot || loading}
+                disabled={!selectedSlot || loading || totalSelected < 1}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
               >
                 {loading ? 'Procesando...' : 'Continuar con la reserva'}

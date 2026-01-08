@@ -27,8 +27,16 @@ function filterRequestHeaders(req: NextRequest): HeadersInit {
       return;
     }
 
-    headers[key] = value;
+    headers[lower] = value;
   });
+
+  // Asegurar tenant header para requests que vienen de terceros (p.ej. Redsys callbacks)
+  // donde no existe `x-tenant-domain`, pero sí hay Host del tenant en Next.
+  if (!headers['x-tenant-domain']) {
+    const host = req.headers.get('host') || req.nextUrl.hostname;
+    const domain = host ? host.split(',')[0].trim().split(':')[0] : '';
+    if (domain) headers['x-tenant-domain'] = domain;
+  }
 
   return headers;
 }

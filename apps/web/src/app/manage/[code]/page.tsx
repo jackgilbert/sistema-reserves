@@ -79,6 +79,16 @@ export default function ManageBookingPage({ params }: { params: { code: string }
 
   const canBeCancelled = booking.status === 'CONFIRMED' || booking.status === 'HOLD';
   const isCancelled = booking.status === 'CANCELLED' || booking.status === 'REFUNDED';
+  const slotVariantKey = (booking as any).slotVariantKey as string | undefined;
+  const slotVariantLabel = (() => {
+    const key = typeof slotVariantKey === 'string' ? slotVariantKey.trim() : '';
+    if (!key) return undefined;
+    const variants = (booking.offering as any)?.metadata?.slotVariants;
+    if (!Array.isArray(variants)) return key;
+    const match = variants.find((v: any) => v && typeof v.key === 'string' && v.key === key);
+    const label = match && typeof match.label === 'string' ? match.label.trim() : '';
+    return label || key;
+  })();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -140,6 +150,13 @@ export default function ManageBookingPage({ params }: { params: { code: string }
                   <p className="font-medium">{formatDate(booking.slotStart)}</p>
                   <p className="font-medium">{formatTime(booking.slotStart)}</p>
                 </div>
+
+                {slotVariantLabel && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Idioma</p>
+                    <p className="font-medium">{slotVariantLabel}</p>
+                  </div>
+                )}
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Cantidad</p>

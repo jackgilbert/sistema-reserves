@@ -1,22 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-
-interface Offering {
-  id: string;
-  name: string;
-  description: string | null;
-  type: string;
-  basePrice: number;
-  currency: string;
-  capacity: number | null;
-  active: boolean;
-  metadata?: Record<string, any>;
-}
-
-type SlotVariant = { key: string; label?: string };
+import { useRouter } from 'next/navigation';
 
 function formatCentsToEuros(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -30,22 +16,20 @@ function parseEurosToCents(input: string): number | null {
   return Math.round(value * 100);
 }
 
-export default function AdminOfferingEditPage() {
+export default function AdminOfferingNewPage() {
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const id = params?.id;
-
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [offering, setOffering] = useState<Offering | null>(null);
 
+  type SlotVariant = { key: string; label?: string };
+
+  const [slug, setSlug] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [basePriceEuros, setBasePriceEuros] = useState('');
+  const [type, setType] = useState<'CAPACITY' | 'RESOURCE' | 'APPOINTMENT' | 'SEATS'>('CAPACITY');
+  const [basePriceEuros, setBasePriceEuros] = useState(formatCentsToEuros(0));
   const [capacity, setCapacity] = useState<string>('');
   const [active, setActive] = useState(true);
-  const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [slotVariants, setSlotVariants] = useState<SlotVariant[]>([]);
 
   const authHeaders = useMemo(() => {
@@ -58,62 +42,24 @@ export default function AdminOfferingEditPage() {
     return headers;
   }, []);
 
-  useEffect(() => {
-    const load = async () => {
-      if (!id) return;
-
-      setLoading(true);
-      setError('');
-
-      try {
-        const res = await fetch(`/api/offerings/${id}`, { headers: authHeaders });
-
-        if (res.status === 401) {
-          router.push('/admin/login');
-          return;
-        }
-
-        if (!res.ok) {
-          throw new Error('Error al cargar la oferta');
-        }
-
-        const data = (await res.json()) as Offering;
-        setOffering(data);
-
-        setName(data.name ?? '');
-        setDescription(data.description ?? '');
-        setBasePriceEuros(formatCentsToEuros(data.basePrice ?? 0));
-        setCapacity(data.capacity === null || data.capacity === undefined ? '' : String(data.capacity));
-        setActive(!!data.active);
-
-        const nextMetadata = (data.metadata && typeof data.metadata === 'object') ? data.metadata : {};
-        setMetadata(nextMetadata);
-        const loadedVariants = Array.isArray(nextMetadata.slotVariants) ? nextMetadata.slotVariants : [];
-        setSlotVariants(
-          (loadedVariants as any[])
-            .filter((v) => v && typeof v.key === 'string')
-            .map((v) => ({ key: String(v.key), label: typeof v.label === 'string' ? v.label : '' })),
-        );
-      } catch (err: any) {
-        setError(err?.message || 'Error al cargar la oferta');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, [id, authHeaders, router]);
-
-  const handleSave = async () => {
-    if (!id) return;
-
+  const handleCreate = async () => {
     setSaving(true);
     setError('');
 
     try {
       const basePrice = parseEurosToCents(basePriceEuros);
-      if (basePrice === null) {
+      if (basePrice === null || basePrice < 0) {
         throw new Error('Precio base inválido');
+      }
+
+      const trimmedSlug = slug.trim();
+      if (!trimmedSlug) {
+        throw new Error('Slug requerido');
+      }
+
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        throw new Error('Nombre requerido');
       }
 
       const capacityValue = capacity.trim() === '' ? null : Number(capacity);
@@ -121,17 +67,18 @@ export default function AdminOfferingEditPage() {
         throw new Error('Capacidad inválida');
       }
 
-      const res = await fetch(`/api/offerings/${id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/offerings', {
+        method: 'POST',
         headers: authHeaders,
         body: JSON.stringify({
-          name,
-          description,
+          slug: trimmedSlug,
+          name: trimmedName,
+          description: description.trim() ? description : undefined,
+          type,
           basePrice,
           capacity: capacityValue,
           active,
           metadata: {
-            ...(metadata || {}),
             slotVariants: slotVariants
               .map((v) => ({
                 key: (v.key || '').trim(),
@@ -151,47 +98,30 @@ export default function AdminOfferingEditPage() {
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const payload = await res.json().catch(() => null);
-          throw new Error(payload?.message || 'Error al guardar la oferta');
+          throw new Error(payload?.message || 'Error al crear la oferta');
         }
-        throw new Error('Error al guardar la oferta');
+        throw new Error('Error al crear la oferta');
       }
 
       router.push('/admin/offerings');
     } catch (err: any) {
-      setError(err?.message || 'Error al guardar la oferta');
+      setError(err?.message || 'Error al crear la oferta');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Cargando oferta...</div>
-      </div>
-    );
-  }
-
-  if (!offering) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">{error || 'Error al cargar la oferta'}</div>
-      </div>
-    );
-  }
+  const showCapacity = type === 'CAPACITY' || type === 'APPOINTMENT';
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Editar oferta</h1>
-            <p className="mt-1 text-sm text-gray-600">Tipo: {offering.type}</p>
+            <h1 className="text-2xl font-semibold text-gray-900">Nueva oferta</h1>
+            <p className="mt-1 text-sm text-gray-600">Crea una oferta para tu catálogo</p>
           </div>
-          <Link
-            href="/admin/offerings"
-            className="text-sm font-medium text-gray-700 hover:text-gray-900"
-          >
+          <Link href="/admin/offerings" className="text-sm font-medium text-gray-700 hover:text-gray-900">
             Volver
           </Link>
         </div>
@@ -203,6 +133,16 @@ export default function AdminOfferingEditPage() {
         )}
 
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Slug</label>
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="ej: entradas-museo"
+              className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700">Nombre</label>
             <input
@@ -224,6 +164,20 @@ export default function AdminOfferingEditPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700">Tipo</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as any)}
+                className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="CAPACITY">Capacidad</option>
+                <option value="RESOURCE">Recurso</option>
+                <option value="APPOINTMENT">Cita</option>
+                <option value="SEATS">Asientos</option>
+              </select>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700">Precio base (EUR)</label>
               <input
                 value={basePriceEuros}
@@ -232,7 +186,9 @@ export default function AdminOfferingEditPage() {
                 className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
+          </div>
 
+          {showCapacity && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Capacidad</label>
               <input
@@ -242,7 +198,7 @@ export default function AdminOfferingEditPage() {
                 className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
-          </div>
+          )}
 
           <div className="flex items-center gap-2">
             <input
@@ -321,11 +277,11 @@ export default function AdminOfferingEditPage() {
           <div className="pt-2 flex justify-end">
             <button
               type="button"
-              onClick={handleSave}
+              onClick={handleCreate}
               disabled={saving}
               className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? 'Creando...' : 'Crear'}
             </button>
           </div>
         </div>

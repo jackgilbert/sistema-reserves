@@ -10,6 +10,13 @@ interface Booking {
   email: string;
   totalAmount: number;
   createdAt: string;
+  slotVariantKey?: string;
+  slotStart?: string;
+  quantity?: number;
+  offering?: {
+    name: string;
+    metadata?: Record<string, any>;
+  };
   items: Array<{
     offering: {
       name: string;
@@ -78,6 +85,16 @@ export default function AdminBookingsPage() {
     });
   };
 
+  const getSlotVariantLabel = (booking: Booking) => {
+    const key = (booking.slotVariantKey || '').trim();
+    if (!key) return '-';
+    const variants = booking.offering?.metadata?.slotVariants;
+    if (!Array.isArray(variants)) return key;
+    const match = variants.find((v: any) => v && typeof v.key === 'string' && v.key === key);
+    const label = match && typeof match.label === 'string' ? match.label.trim() : '';
+    return label || key;
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
@@ -132,6 +149,9 @@ export default function AdminBookingsPage() {
                       Fecha/Hora
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Idioma
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Cantidad
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -160,13 +180,20 @@ export default function AdminBookingsPage() {
                           <div className="text-xs text-gray-400">{booking.email}</div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {booking.items[0]?.offering.name}
+                          {booking.offering?.name || booking.items[0]?.offering?.name || '-'}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {booking.items[0] && formatDate(booking.items[0].slot)}
+                          {booking.slotStart
+                            ? formatDate(booking.slotStart)
+                            : booking.items[0]
+                              ? formatDate(booking.items[0].slot)
+                              : '-'}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {booking.items[0]?.quantity}
+                          {getSlotVariantLabel(booking)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {booking.quantity ?? booking.items[0]?.quantity ?? '-'}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {formatCurrency(booking.totalAmount)}
