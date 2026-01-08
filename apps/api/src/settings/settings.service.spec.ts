@@ -105,7 +105,7 @@ xdescribe('SettingsService', () => {
       const result = await service.validateConfiguration({
         payments: {
           enabled: true,
-          provider: 'stripe',
+          provider: 'redsys',
           requireDeposit: true,
           depositPercentage: 0,
         },
@@ -153,7 +153,7 @@ xdescribe('SettingsService', () => {
         {
           payments: {
             enabled: true,
-            provider: 'stripe',
+            provider: 'redsys',
             requireDeposit: true,
             depositPercentage: 25,
           },
@@ -212,7 +212,7 @@ describe('SettingsValidatorService', () => {
       const result = validator.validateFeatureFlags({
         payments: {
           enabled: true,
-          provider: 'stripe',
+          provider: 'redsys',
           requireDeposit: true,
           depositPercentage: 150, // Invalid (> 100)
         },

@@ -106,7 +106,7 @@ export const SETTINGS_TEMPLATES = {
       },
       payments: {
         enabled: true,
-        provider: 'stripe' as const,
+        provider: 'redsys' as const,
         requireDeposit: true,
         depositPercentage: 20,
       },
@@ -191,7 +191,7 @@ export const SETTINGS_TEMPLATES = {
       },
       payments: {
         enabled: true,
-        provider: 'stripe' as const,
+        provider: 'redsys' as const,
         requireDeposit: true,
         depositPercentage: 50,
       },
@@ -276,7 +276,7 @@ export const SETTINGS_TEMPLATES = {
       },
       payments: {
         enabled: true,
-        provider: 'stripe' as const,
+        provider: 'redsys' as const,
         requireDeposit: false,
         depositPercentage: 0,
       },

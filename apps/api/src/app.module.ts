@@ -6,10 +6,12 @@ import { AuthModule } from './auth/auth.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { CheckInModule } from './checkin/checkin.module';
+import { DiscountsModule } from './discounts/discounts.module';
 import { HealthModule } from './health/health.module';
 import { HoldsModule } from './holds/holds.module';
 import { InstancesModule } from './instances/instances.module';
 import { OfferingsModule } from './offerings/offerings.module';
+import { ParkingModule } from './parking/parking.module';
 import { PaymentsModule } from './payments/payments.module';
 import { SettingsModule } from './settings/settings.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -34,7 +36,9 @@ import { TenantModule } from './tenant/tenant.module';
     AvailabilityModule,
     HoldsModule,
     BookingsModule,
+    ParkingModule,
     PaymentsModule,
+    DiscountsModule,
     CheckInModule,
     TasksModule,
     SettingsModule,

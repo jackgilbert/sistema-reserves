@@ -253,6 +253,7 @@ export class SettingsService {
           bookingsEnabled: flags.bookings.enabled,
           checkInEnabled: flags.checkIn.enabled,
           paymentsEnabled: flags.payments.enabled,
+          paymentsProvider: flags.payments.provider,
         },
       } as any),
     };

@@ -8,6 +8,7 @@ type BookingWithOfferingAndItems = Prisma.BookingGetPayload<{
       select: {
         name: true;
         type: true;
+        metadata: true;
       };
     };
     items: true;
@@ -153,6 +154,7 @@ export class BookingRepository {
           select: {
             name: true,
             type: true,
+            metadata: true,
           },
         },
         items: true,
