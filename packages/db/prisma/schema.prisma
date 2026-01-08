@@ -58,6 +58,8 @@ model Instance {
   inventoryBuckets    InventoryBucket[]
   resourceAllocations ResourceAllocation[]
   schedules           Schedule[]
+  parkingSessions     ParkingSession[]
+  gateEvents          GateEvent[]
 
   @@index([slug])
   @@index([active])
@@ -196,6 +198,8 @@ model InventoryBucket {
   offeringId String
   slotStart  DateTime
   slotEnd    DateTime
+  // Slot variant dimension (e.g. language). Empty string means "default".
+  variantKey String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -210,8 +214,8 @@ model InventoryBucket {
 
   offering Offering @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
 
-  @@unique([tenantId, offeringId, slotStart])
-  @@index([tenantId, offeringId, slotStart])
+  @@unique([tenantId, offeringId, slotStart, variantKey])
+  @@index([tenantId, offeringId, slotStart, variantKey])
   @@index([slotStart, slotEnd])
   @@map("inventory_buckets")
 }
@@ -226,6 +230,8 @@ model Hold {
   offeringId String
   slotStart  DateTime
   slotEnd    DateTime
+  // Slot variant dimension (e.g. language). Empty string means "default".
+  slotVariantKey String @default("")
   quantity   Int
   expiresAt  DateTime
   released   Boolean  @default(false)
@@ -258,6 +264,8 @@ model Booking {
   code        String    @unique // código público de la reserva (para QR)
   slotStart   DateTime
   slotEnd     DateTime
+  // Slot variant dimension (e.g. language). Empty string means "default".
+  slotVariantKey String @default("")
   quantity    Int
   status      String // HOLD, CONFIRMED, CANCELLED, REFUNDED, USED
   totalAmount Int // en centavos
@@ -283,6 +291,10 @@ model Booking {
   // Facturación
   invoice BookingInvoice?
 
+  // Descuentos
+  discountCodeId String?
+  discountCode   DiscountCode? @relation(fields: [discountCodeId], references: [id], onDelete: SetNull)
+
   instance            Instance             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   offering            Offering             @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Restrict)
   items               BookingItem[]
@@ -290,13 +302,50 @@ model Booking {
   payments            Payment[]
   checkInEvents       CheckInEvent[]
   resourceAllocations ResourceAllocation[]
+  parkingSession      ParkingSession?
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
   @@index([tenantId, offeringId, slotStart])
+  @@index([tenantId, discountCodeId])
   @@index([code])
   @@index([customerEmail])
   @@map("bookings")
+}
+
+model DiscountCode {
+  id        String   @id @default(uuid())
+  tenantId  String
+  code      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Scope
+  offeringId String?
+
+  // Discount definition
+  // percentOff: 0..100 (100 means free)
+  percentOff Int
+
+  // Usage rules
+  maxRedemptions Int?
+  redemptionCount Int @default(0)
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  // Optional batch id for bulk creation
+  batchId String?
+
+  instance Instance @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering Offering? @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, active])
+  @@index([tenantId, offeringId])
+  @@index([tenantId, batchId])
+  @@map("discount_codes")
 }
 
 model BookingInvoice {
@@ -463,4 +512,52 @@ model CheckInEvent {
   @@index([tenantId, ticketId])
   @@index([tenantId, scannedAt])
   @@map("checkin_events")
+}
+
+// ============================================================================
+// PARKING
+// ============================================================================
+
+model ParkingSession {
+  id             String    @id @default(uuid())
+  tenantId       String
+  bookingId      String    @unique // 1 booking = 1 sesión
+  plate          String // normalizada (uppercase, sin espacios)
+  entryAt        DateTime
+  exitAt         DateTime?
+  status         String // IN_PROGRESS | PAYMENT_PENDING | PAID | CLOSED
+  pricePerMinute Int // snapshot en centavos/minuto
+  amountDue      Int       @default(0) // en centavos
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  metadata       Json      @default("{}") // matchedBy: exact|tolerant, gateId, etc.
+
+  instance   Instance     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking    Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  gateEvents GateEvent[]
+
+  @@unique([tenantId, bookingId])
+  @@index([tenantId, status])
+  @@index([tenantId, plate])
+  @@index([entryAt])
+  @@map("parking_sessions")
+}
+
+model GateEvent {
+  id               String   @id @default(uuid())
+  tenantId         String
+  parkingSessionId String?
+  type             String // ENTRY_ATTEMPT | ENTRY_OPENED | EXIT_ATTEMPT | QUOTE_CREATED | PAYMENT_OK | PAYMENT_FAILED | EXIT_OPENED
+  source           String   @default("API") // QR | PLATE | MANUAL | API
+  createdAt        DateTime @default(now())
+  metadata         Json     @default("{}") // plate leída, distancia Hamming, gateId, error, etc.
+
+  instance       Instance        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parkingSession ParkingSession? @relation(fields: [parkingSessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, parkingSessionId])
+  @@index([tenantId, type])
+  @@index([createdAt])
+  @@map("gate_events")
 }
