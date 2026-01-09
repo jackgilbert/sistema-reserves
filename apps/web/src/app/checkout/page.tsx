@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPrice, formatDate, formatTime } from '@/lib/utils';
+import { api } from '@/lib/api';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -35,32 +36,50 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      // Aquí iría la integración con Redsys o Stripe
-      // Por ahora, simulamos el proceso de pago
-      
-      // En producción, aquí se crearía el checkout session con Redsys
-      // y se redirigiría al usuario a la pasarela de pago
-      
-      // Simulación: esperar 2 segundos y "confirmar"
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Generar código de reserva simulado
-      const bookingCode = `RES-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-      
-      // Limpiar sessionStorage
+      const holdId = holdData.hold?.id;
+      if (!holdId) {
+        throw new Error('Hold inválido o expirado. Vuelve a seleccionar un horario.');
+      }
+
+      const response = await api.payments.checkout({
+        holdId: holdData.hold.id,
+        email: formData.customerEmail,
+        name: formData.customerName,
+        phone: formData.customerPhone || undefined,
+      });
+
+      // Limpiar hold local (evita reintentos accidentales si el usuario vuelve atrás)
       sessionStorage.removeItem('currentHold');
-      
-      // Redirigir a página de confirmación
-      router.push(`/confirm/${bookingCode}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al procesar el pago');
+
+      if (response.provider === 'none') {
+        router.push(`/confirm/${response.bookingCode}`);
+        return;
+      }
+
+      // Redsys: construir un form POST y auto-enviarlo.
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = response.actionUrl;
+
+      for (const [key, value] of Object.entries(response.fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err: any) {
+      setError(err.message || 'Error al procesar el pago');
       setLoading(false);
     }
   };
 
   if (!holdData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando...</p>
@@ -69,8 +88,10 @@ export default function CheckoutPage() {
     );
   }
 
-  const { hold, offering, quantity } = holdData;
-  const totalAmount = offering.basePrice * quantity;
+  const { hold, offering, quantity, totalAmount: storedTotalAmount, ticketQuantities } = holdData;
+  const totalAmount = typeof storedTotalAmount === 'number'
+    ? storedTotalAmount
+    : offering.basePrice * quantity;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -174,6 +195,28 @@ export default function CheckoutPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Oferta</p>
                   <p className="font-semibold">{offering.name}</p>
+                  {ticketQuantities && (
+                    <div className="mt-2 text-sm text-gray-600 space-y-1">
+                      {(ticketQuantities.standard || 0) > 0 && (
+                        <div className="flex justify-between">
+                          <span>Estándar x{ticketQuantities.standard}</span>
+                          <span>{formatPrice(offering.basePrice * ticketQuantities.standard, offering.currency)}</span>
+                        </div>
+                      )}
+                      {Object.entries((ticketQuantities.variants || {}) as Record<string, number>)
+                        .filter(([, q]) => (q || 0) > 0)
+                        .map(([name, q]) => {
+                          const variant = (offering.priceVariants || []).find((v: any) => v.name === name);
+                          const unit = variant?.price ?? 0;
+                          return (
+                            <div key={name} className="flex justify-between">
+                              <span>{name} x{q}</span>
+                              <span>{formatPrice(unit * q, offering.currency)}</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
                 </div>
 
                 <div>

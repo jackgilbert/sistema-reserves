@@ -17,7 +17,7 @@ export interface FeatureFlags {
   };
   payments: {
     enabled: boolean;
-    provider: 'stripe' | 'none';
+    provider: 'redsys' | 'stripe' | 'none';
     requireDeposit: boolean;
     depositPercentage: number;
   };
@@ -152,7 +152,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   },
   payments: {
     enabled: false,
-    provider: 'none',
+    provider: 'redsys',
     requireDeposit: false,
     depositPercentage: 0,
   },

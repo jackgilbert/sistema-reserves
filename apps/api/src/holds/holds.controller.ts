@@ -13,6 +13,7 @@ import {
   Min,
   IsOptional,
   IsEmail,
+  IsObject,
 } from 'class-validator';
 import { HoldsService } from './holds.service';
 import { TenantService } from '../tenant/tenant.service';
@@ -55,6 +56,25 @@ class CreateHoldDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiProperty({
+    description: 'Nombre de variante de precio (ticket)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  priceVariantName?: string;
+
+  @ApiProperty({
+    description: 'Desglose de entradas por tipo (standard + variants)',
+    required: false,
+  })
+  @IsOptional()
+  @IsObject()
+  ticketQuantities?: {
+    standard?: number;
+    variants?: Record<string, number>;
+  };
 }
 
 @ApiTags('Holds')
@@ -84,6 +104,8 @@ export class HoldsController {
         new Date(dto.slotStart),
         new Date(dto.slotEnd),
         dto.quantity,
+        dto.ticketQuantities,
+        dto.priceVariantName,
         { email: dto.email, name: dto.name, phone: dto.phone },
         tenant,
       );

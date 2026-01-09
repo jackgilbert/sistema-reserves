@@ -117,10 +117,19 @@ export const api = {
 
   bookings: {
     getByCode: (code: string) => fetchApi<Booking>(`/bookings/public/${code}`),
+    createFromHold: (data: CreateBookingFromHoldData) =>
+      fetchApi<Booking>('/bookings', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     cancel: (code: string) =>
       fetchApi<Booking>(`/bookings/public/${code}/cancel`, {
         method: 'POST',
       }),
+  },
+
+  site: {
+    getPublic: () => fetchApi<SiteConfig>('/site/public'),
   },
 
   settings: {
@@ -145,6 +154,27 @@ export const api = {
         method: 'PATCH',
       }),
   },
+
+  payments: {
+    checkout: (data: { holdId: string; email: string; name: string; phone?: string }) =>
+      fetchApi<
+        | { provider: 'none'; bookingCode: string; bookingStatus: string }
+        | {
+            provider: 'redsys';
+            bookingCode: string;
+            bookingStatus: string;
+            actionUrl: string;
+            fields: {
+              Ds_SignatureVersion: string;
+              Ds_MerchantParameters: string;
+              Ds_Signature: string;
+            };
+          }
+      >('/payments/checkout', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
 };
 
 // Tipos
@@ -160,6 +190,7 @@ export interface Offering {
   images: string[];
   metadata: Record<string, any>;
   schedule?: Schedule;
+  priceVariants?: Array<{ name: string; price: number; description?: string }>;
 }
 
 export interface Schedule {
@@ -176,7 +207,11 @@ export interface AvailabilitySlot {
   start: string;
   end: string;
   available: number;
-  total: number;
+  price: number;
+  label?: string;
+  language?: string;
+  description?: string;
+  resourceId?: string;
 }
 
 export interface CreateHoldData {
@@ -184,6 +219,30 @@ export interface CreateHoldData {
   slotStart: string;
   slotEnd: string;
   quantity: number;
+  priceVariantName?: string;
+  ticketQuantities?: {
+    standard?: number;
+    variants?: Record<string, number>;
+  };
+}
+
+export interface CreateBookingFromHoldData {
+  holdId: string;
+  email: string;
+  name: string;
+  phone?: string;
+  invoice?: {
+    legalName: string;
+    taxId?: string;
+    email?: string;
+    phone?: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    region?: string;
+    postalCode: string;
+    country: string;
+  };
 }
 
 export interface Hold {
@@ -210,4 +269,23 @@ export interface Booking {
   customerPhone?: string;
   qrCode?: string;
   offering?: Offering;
+}
+
+export interface SiteConfig {
+  instance: {
+    id: string;
+    slug: string;
+    name: string;
+    logo: string | null;
+    primaryColor: string;
+    secondaryColor: string;
+    locale: string;
+    currency: string;
+    siteTitle: string | null;
+    siteDescription: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    contactAddress: string | null;
+    usefulInfo: Array<{ title: string; description: string }> | any;
+  };
 }

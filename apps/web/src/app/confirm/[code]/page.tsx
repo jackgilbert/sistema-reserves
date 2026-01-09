@@ -252,6 +252,7 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     HOLD: 'Pendiente',
+    PENDING_PAYMENT: 'Pendiente de pago',
     CONFIRMED: 'Confirmada',
     CANCELLED: 'Cancelada',
     REFUNDED: 'Reembolsada',

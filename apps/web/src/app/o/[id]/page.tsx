@@ -11,10 +11,26 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [standardQty, setStandardQty] = useState(1);
+  const [variantQty, setVariantQty] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const variants = offering?.priceVariants ?? [];
+  const available = selectedSlot ? selectedSlot.available : 0;
+  const totalSelected =
+    standardQty +
+    Object.values(variantQty).reduce((acc, n) => acc + (Number.isFinite(n) ? n : 0), 0);
+
+  const totalAmount =
+    (offering?.basePrice ?? 0) * standardQty +
+    variants.reduce((acc, v) => acc + v.price * (variantQty[v.name] || 0), 0);
+
+  const clampChange = (current: number, next: number, otherSum: number) => {
+    const maxForThis = Math.max(0, available - otherSum);
+    return Math.max(0, Math.min(next, maxForThis));
+  };
 
   // Cargar oferta
   useEffect(() => {
@@ -60,20 +76,34 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
   const handleReserve = async () => {
     if (!selectedSlot || !offering) return;
 
+    if (totalSelected < 1) {
+      setError('Selecciona al menos 1 entrada');
+      return;
+    }
+
     try {
       setLoading(true);
       const hold = await api.holds.create({
         offeringId: offering.id,
         slotStart: selectedSlot.start,
         slotEnd: selectedSlot.end,
-        quantity,
+        quantity: totalSelected,
+        ticketQuantities: {
+          standard: standardQty,
+          variants: variantQty,
+        },
       });
 
       // Guardar en sessionStorage y redirigir a checkout
       sessionStorage.setItem('currentHold', JSON.stringify({
         hold,
         offering,
-        quantity,
+        quantity: totalSelected,
+        ticketQuantities: {
+          standard: standardQty,
+          variants: variantQty,
+        },
+        totalAmount,
       }));
       
       router.push('/checkout');
@@ -213,22 +243,70 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cantidad
                   </label>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-blue-500 transition-colors"
-                    >
-                      -
-                    </button>
-                    <span className="text-xl font-semibold w-12 text-center">
-                      {quantity}
-                    </span>
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="w-10 h-10 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-blue-500 transition-colors"
-                    >
-                      +
-                    </button>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="font-medium">Estándar</div>
+                        <div className="text-xs text-gray-600">{formatPrice(offering.basePrice, offering.currency)}</div>
+                      </div>
+                      <select
+                        value={standardQty}
+                        onChange={(e) => {
+                          const next = Number(e.target.value);
+                          const otherSum = totalSelected - standardQty;
+                          setStandardQty(clampChange(standardQty, next, otherSum));
+                        }}
+                        disabled={!selectedSlot}
+                        className="w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                      >
+                        {(() => {
+                          const otherSum = totalSelected - standardQty;
+                          const maxForThis = selectedSlot ? Math.max(0, available - otherSum) : 0;
+                          const options: number[] = [];
+                          for (let i = 0; i <= Math.min(maxForThis, 20); i++) options.push(i);
+                          return options;
+                        })().map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {variants.map((v) => {
+                      const current = variantQty[v.name] || 0;
+                      return (
+                        <div key={v.name} className="flex items-center justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="font-medium">{v.name}</div>
+                            <div className="text-xs text-gray-600">{formatPrice(v.price, offering.currency)}</div>
+                          </div>
+                          <select
+                            value={current}
+                            onChange={(e) => {
+                              const next = Number(e.target.value);
+                              const otherSum = totalSelected - current;
+                              const clamped = clampChange(current, next, otherSum);
+                              setVariantQty((prev) => ({ ...prev, [v.name]: clamped }));
+                            }}
+                            disabled={!selectedSlot}
+                            className="w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                          >
+                            {(() => {
+                              const otherSum = totalSelected - current;
+                              const maxForThis = selectedSlot ? Math.max(0, available - otherSum) : 0;
+                              const options: number[] = [];
+                              for (let i = 0; i <= Math.min(maxForThis, 20); i++) options.push(i);
+                              return options;
+                            })().map((n) => (
+                              <option key={n} value={n}>
+                                {n}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -242,23 +320,19 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
 
                 <div className="border-t pt-4">
                   <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">Precio unitario</span>
-                    <span className="font-medium">
-                      {formatPrice(offering.basePrice, offering.currency)}
-                    </span>
+                    <span className="text-gray-600">Entradas</span>
+                    <span className="font-medium">{totalSelected}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-blue-600">
-                      {formatPrice(offering.basePrice * quantity, offering.currency)}
-                    </span>
+                    <span className="text-blue-600">{formatPrice(totalAmount, offering.currency)}</span>
                   </div>
                 </div>
               </div>
 
               <button
                 onClick={handleReserve}
-                disabled={!selectedSlot || loading}
+                disabled={!selectedSlot || loading || totalSelected < 1}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
               >
                 {loading ? 'Procesando...' : 'Continuar con la reserva'}

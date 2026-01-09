@@ -46,6 +46,8 @@ export class TenantMiddleware implements NestMiddleware {
       domain = this.normalizeDomain(host);
     }
 
+    console.log('[TenantMiddleware] Host header:', req.get('host'), '=> domain:', domain);
+
     if (!domain) {
       throw new NotFoundException('Dominio inválido o no proporcionado');
     }

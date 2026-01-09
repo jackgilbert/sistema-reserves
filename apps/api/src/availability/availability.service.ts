@@ -35,6 +35,7 @@ export class AvailabilityService {
     offeringId: string,
     startDate: string,
     endDate: string,
+    slotVariantKey: string | undefined,
     tenant: TenantContext,
   ): Promise<Record<string, TimeSlot[]>> {
     const start = startOfDay(parseISO(startDate));

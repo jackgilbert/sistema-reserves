@@ -58,6 +58,8 @@ model Instance {
   inventoryBuckets    InventoryBucket[]
   resourceAllocations ResourceAllocation[]
   schedules           Schedule[]
+  parkingSessions     ParkingSession[]
+  gateEvents          GateEvent[]
 
   @@index([slug])
   @@index([active])
@@ -290,6 +292,7 @@ model Booking {
   payments            Payment[]
   checkInEvents       CheckInEvent[]
   resourceAllocations ResourceAllocation[]
+  parkingSession      ParkingSession?
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -463,4 +466,52 @@ model CheckInEvent {
   @@index([tenantId, ticketId])
   @@index([tenantId, scannedAt])
   @@map("checkin_events")
+}
+
+// ============================================================================
+// PARKING
+// ============================================================================
+
+model ParkingSession {
+  id             String    @id @default(uuid())
+  tenantId       String
+  bookingId      String    @unique // 1 booking = 1 sesión
+  plate          String // normalizada (uppercase, sin espacios)
+  entryAt        DateTime
+  exitAt         DateTime?
+  status         String // IN_PROGRESS | PAYMENT_PENDING | PAID | CLOSED
+  pricePerMinute Int // snapshot en centavos/minuto
+  amountDue      Int       @default(0) // en centavos
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  metadata       Json      @default("{}") // matchedBy: exact|tolerant, gateId, etc.
+
+  instance   Instance     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking    Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  gateEvents GateEvent[]
+
+  @@unique([tenantId, bookingId])
+  @@index([tenantId, status])
+  @@index([tenantId, plate])
+  @@index([entryAt])
+  @@map("parking_sessions")
+}
+
+model GateEvent {
+  id               String   @id @default(uuid())
+  tenantId         String
+  parkingSessionId String?
+  type             String // ENTRY_ATTEMPT | ENTRY_OPENED | EXIT_ATTEMPT | QUOTE_CREATED | PAYMENT_OK | PAYMENT_FAILED | EXIT_OPENED
+  source           String   @default("API") // QR | PLATE | MANUAL | API
+  createdAt        DateTime @default(now())
+  metadata         Json     @default("{}") // plate leída, distancia Hamming, gateId, error, etc.
+
+  instance       Instance        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parkingSession ParkingSession? @relation(fields: [parkingSessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, parkingSessionId])
+  @@index([tenantId, type])
+  @@index([createdAt])
+  @@map("gate_events")
 }

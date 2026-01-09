@@ -90,9 +90,42 @@ export class BookingsService {
       throw new BadRequestException('El hold ha expirado');
     }
 
-    // Calcular precio
-    const price = hold.offering.basePrice;
-    const totalAmount = price * hold.quantity;
+    const holdMeta = (hold.metadata || {}) as any;
+    const ticketSelection = holdMeta?.ticketSelection as
+      | { standard: number; variants: Record<string, number> }
+      | undefined;
+
+    const priceVariantName: string | undefined =
+      typeof holdMeta.priceVariantName === 'string' ? holdMeta.priceVariantName : undefined;
+
+    const variants = Array.isArray(hold.offering.priceVariants)
+      ? (hold.offering.priceVariants as Array<{ name: string; price: number }>).filter(
+          (v) => v && typeof v.name === 'string',
+        )
+      : [];
+
+    const computeTotalFromSelection = () => {
+      let total = 0;
+      total += (ticketSelection?.standard || 0) * hold.offering.basePrice;
+      for (const [name, qty] of Object.entries(ticketSelection?.variants || {})) {
+        const v = variants.find((x) => x.name === name);
+        if (!v) {
+          throw new BadRequestException(`Variante de precio no válida: ${name}`);
+        }
+        total += v.price * qty;
+      }
+      return total;
+    };
+
+    const totalAmount = ticketSelection
+      ? computeTotalFromSelection()
+      : (() => {
+          const selectedVariant = priceVariantName
+            ? variants.find((v) => v.name === priceVariantName)
+            : undefined;
+          const unitPrice = selectedVariant?.price ?? hold.offering.basePrice;
+          return unitPrice * hold.quantity;
+        })();
 
     // Generar código único
     const code = await this.generateCode();
@@ -119,16 +152,54 @@ export class BookingsService {
         },
       });
 
-      // 2. Crear booking item
-      await tx.bookingItem.create({
-        data: {
-          bookingId: newBooking.id,
-          description: `${hold.offering.name} - ${hold.quantity}x`,
-          quantity: hold.quantity,
-          unitPrice: price,
-          totalPrice: totalAmount,
-        },
-      });
+      // 2. Crear booking items
+      if (ticketSelection) {
+        const standardQty = Math.max(0, Math.floor(ticketSelection.standard || 0));
+        if (standardQty > 0) {
+          await tx.bookingItem.create({
+            data: {
+              bookingId: newBooking.id,
+              description: `${hold.offering.name} - Estándar - ${standardQty}x`,
+              quantity: standardQty,
+              unitPrice: hold.offering.basePrice,
+              totalPrice: hold.offering.basePrice * standardQty,
+            },
+          });
+        }
+
+        for (const [name, qtyRaw] of Object.entries(ticketSelection.variants || {})) {
+          const qty = Math.max(0, Math.floor(qtyRaw || 0));
+          if (qty < 1) continue;
+          const v = variants.find((x) => x.name === name);
+          if (!v) {
+            throw new BadRequestException(`Variante de precio no válida: ${name}`);
+          }
+          await tx.bookingItem.create({
+            data: {
+              bookingId: newBooking.id,
+              description: `${hold.offering.name} - ${name} - ${qty}x`,
+              quantity: qty,
+              unitPrice: v.price,
+              totalPrice: v.price * qty,
+            },
+          });
+        }
+      } else {
+        const selectedVariant = priceVariantName
+          ? variants.find((v) => v.name === priceVariantName)
+          : undefined;
+        const unitPrice = selectedVariant?.price ?? hold.offering.basePrice;
+
+        await tx.bookingItem.create({
+          data: {
+            bookingId: newBooking.id,
+            description: `${hold.offering.name}${priceVariantName ? ` - ${priceVariantName}` : ''} - ${hold.quantity}x`,
+            quantity: hold.quantity,
+            unitPrice,
+            totalPrice: totalAmount,
+          },
+        });
+      }
 
       // 3. Marcar hold como liberado
       await tx.hold.update({
@@ -179,6 +250,248 @@ export class BookingsService {
       quantity: booking.quantity,
       createdAt: booking.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * Crear booking en estado HOLD (pendiente de pago) desde un hold.
+   * Nota: no mueve inventario a sold hasta confirmación.
+   */
+  async createPendingBookingFromHold(
+    holdId: string,
+    email: string,
+    name: string,
+    phone: string | undefined,
+    tenant: TenantContext,
+  ) {
+    const hold = await this.prisma.hold.findFirst({
+      where: {
+        tenantId: tenant.tenantId,
+        id: holdId,
+      },
+      include: {
+        offering: true,
+      },
+    });
+
+    if (!hold) {
+      throw new NotFoundException('Hold no encontrado');
+    }
+
+    if (hold.expiresAt < new Date()) {
+      throw new BadRequestException('El hold ha expirado');
+    }
+
+    const holdMeta = (hold.metadata || {}) as any;
+    const ticketSelection = holdMeta?.ticketSelection as
+      | { standard: number; variants: Record<string, number> }
+      | undefined;
+
+    const priceVariantName: string | undefined =
+      typeof holdMeta.priceVariantName === 'string' ? holdMeta.priceVariantName : undefined;
+
+    const variants = Array.isArray(hold.offering.priceVariants)
+      ? (hold.offering.priceVariants as Array<{ name: string; price: number }>).filter(
+          (v) => v && typeof v.name === 'string',
+        )
+      : [];
+
+    const computeTotalFromSelection = () => {
+      let total = 0;
+      total += (ticketSelection?.standard || 0) * hold.offering.basePrice;
+      for (const [name, qty] of Object.entries(ticketSelection?.variants || {})) {
+        const v = variants.find((x) => x.name === name);
+        if (!v) {
+          throw new BadRequestException(`Variante de precio no válida: ${name}`);
+        }
+        total += v.price * qty;
+      }
+      return total;
+    };
+
+    const totalAmount = ticketSelection
+      ? computeTotalFromSelection()
+      : (() => {
+          const selectedVariant = priceVariantName
+            ? variants.find((v) => v.name === priceVariantName)
+            : undefined;
+          const unitPrice = selectedVariant?.price ?? hold.offering.basePrice;
+          return unitPrice * hold.quantity;
+        })();
+
+    const code = await this.generateCode();
+
+    const booking = await this.prisma.$transaction(async (tx) => {
+      const newBooking = await tx.booking.create({
+        data: {
+          tenantId: tenant.tenantId,
+          offeringId: hold.offeringId,
+          code,
+          slotStart: hold.slotStart,
+          slotEnd: hold.slotEnd,
+          quantity: hold.quantity,
+          status: 'HOLD',
+          totalAmount,
+          currency: hold.offering.currency,
+          customerEmail: email,
+          customerName: name,
+          customerPhone: phone || null,
+          metadata: {
+            ...(hold.metadata ? (hold.metadata as any) : {}),
+            holdId,
+          },
+        },
+        include: {
+          offering: true,
+        },
+      });
+
+      if (ticketSelection) {
+        const standardQty = Math.max(0, Math.floor(ticketSelection.standard || 0));
+        if (standardQty > 0) {
+          await tx.bookingItem.create({
+            data: {
+              bookingId: newBooking.id,
+              description: `${hold.offering.name} - Estándar - ${standardQty}x`,
+              quantity: standardQty,
+              unitPrice: hold.offering.basePrice,
+              totalPrice: hold.offering.basePrice * standardQty,
+            },
+          });
+        }
+
+        for (const [name, qtyRaw] of Object.entries(ticketSelection.variants || {})) {
+          const qty = Math.max(0, Math.floor(qtyRaw || 0));
+          if (qty < 1) continue;
+          const v = variants.find((x) => x.name === name);
+          if (!v) {
+            throw new BadRequestException(`Variante de precio no válida: ${name}`);
+          }
+          await tx.bookingItem.create({
+            data: {
+              bookingId: newBooking.id,
+              description: `${hold.offering.name} - ${name} - ${qty}x`,
+              quantity: qty,
+              unitPrice: v.price,
+              totalPrice: v.price * qty,
+            },
+          });
+        }
+      } else {
+        const selectedVariant = priceVariantName
+          ? variants.find((v) => v.name === priceVariantName)
+          : undefined;
+        const unitPrice = selectedVariant?.price ?? hold.offering.basePrice;
+
+        await tx.bookingItem.create({
+          data: {
+            bookingId: newBooking.id,
+            description: `${hold.offering.name}${priceVariantName ? ` - ${priceVariantName}` : ''} - ${hold.quantity}x`,
+            quantity: hold.quantity,
+            unitPrice,
+            totalPrice: totalAmount,
+          },
+        });
+      }
+
+      return newBooking;
+    });
+
+    return {
+      id: booking.id,
+      code: booking.code,
+      status: booking.status,
+      totalAmount: booking.totalAmount,
+      currency: booking.currency,
+      customerName: booking.customerName,
+      offering: booking.offering ? { id: booking.offering.id, name: booking.offering.name } : undefined,
+    };
+  }
+
+  /**
+   * Confirmar un booking pendiente (HOLD) cuando el pago se completa.
+   */
+  async confirmPendingBookingPayment(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        tenantId: true,
+        offeringId: true,
+        slotStart: true,
+        status: true,
+        quantity: true,
+        metadata: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking no encontrado');
+    }
+
+    if (booking.status !== 'HOLD') {
+      // Idempotencia: si ya está confirmado, no hacer nada.
+      if (booking.status === 'CONFIRMED') return { success: true };
+      throw new BadRequestException(`Estado de booking inválido: ${booking.status}`);
+    }
+
+    const holdId = (booking.metadata as any)?.holdId as string | undefined;
+    if (!holdId) {
+      throw new BadRequestException('Booking sin holdId asociado');
+    }
+
+    const hold = await this.prisma.hold.findFirst({
+      where: {
+        tenantId: booking.tenantId,
+        id: holdId,
+        released: false,
+      },
+      select: {
+        id: true,
+        offeringId: true,
+        slotStart: true,
+        quantity: true,
+        expiresAt: true,
+      },
+    });
+
+    if (!hold) {
+      throw new NotFoundException('Hold asociado no encontrado');
+    }
+
+    if (hold.expiresAt < new Date()) {
+      throw new BadRequestException('El hold asociado ha expirado');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: 'CONFIRMED',
+          confirmedAt: new Date(),
+        },
+      });
+
+      await tx.hold.update({
+        where: { id: hold.id },
+        data: { released: true },
+      });
+
+      await tx.inventoryBucket.update({
+        where: {
+          tenantId_offeringId_slotStart: {
+            tenantId: booking.tenantId,
+            offeringId: booking.offeringId,
+            slotStart: hold.slotStart,
+          },
+        },
+        data: {
+          heldCapacity: { decrement: hold.quantity },
+          soldCapacity: { increment: hold.quantity },
+        },
+      });
+    });
+
+    return { success: true };
   }
 
   /**

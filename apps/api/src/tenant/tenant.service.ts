@@ -84,11 +84,16 @@ export class TenantService {
   /**
    * Normaliza el dominio para desarrollo
    * Mapea dominios de GitHub Codespaces, Gitpod, etc. a 'localhost'
+   * NOTA: Preserva subdominios de localhost (ej: museo.localhost, parking.localhost)
    */
   private normalizeDomain(domain: string): string {
+    // Preservar subdominios de localhost para desarrollo multi-tenant
+    if (domain.endsWith('.localhost') || domain === 'localhost') {
+      return domain;
+    }
+
     // Si contiene patrones de desarrollo, usar localhost
     if (
-      domain.includes('localhost') ||
       domain.includes('.app.github.dev') ||
       domain.includes('.gitpod.io') ||
       domain.includes('.repl.co') ||

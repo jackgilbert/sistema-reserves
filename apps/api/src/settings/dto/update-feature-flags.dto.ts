@@ -66,10 +66,10 @@ class PaymentFeaturesDto {
   @IsBoolean()
   enabled?: boolean;
 
-  @ApiProperty({ required: false, enum: ['stripe', 'none'] })
+  @ApiProperty({ required: false, enum: ['redsys', 'stripe', 'none'] })
   @IsOptional()
-  @IsEnum(['stripe', 'none'])
-  provider?: 'stripe' | 'none';
+  @IsEnum(['redsys', 'stripe', 'none'])
+  provider?: 'redsys' | 'stripe' | 'none';
 
   @ApiProperty({ required: false })
   @IsOptional()

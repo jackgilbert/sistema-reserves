@@ -125,6 +125,11 @@ export default function AdminOfferingEditPage() {
       }
 
       if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const payload = await res.json().catch(() => null);
+          throw new Error(payload?.message || 'Error al guardar la oferta');
+        }
         throw new Error('Error al guardar la oferta');
       }
 

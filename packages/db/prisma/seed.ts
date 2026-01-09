@@ -37,11 +37,22 @@ async function main() {
       locale: 'es-ES',
       currency: 'EUR',
       active: true,
+      siteTitle: 'Museo de Arte Moderno - Reserva tu visita',
+      siteDescription: 'Descubre nuestra colección de arte moderno y contemporáneo. Reserva tu entrada online y evita colas.',
+      contactEmail: 'info@museoarte.com',
+      contactPhone: '+34 91 123 45 67',
+      contactAddress: 'Calle del Arte, 123, 28001 Madrid, España',
+      usefulInfo: [
+        { title: 'Horarios', description: 'Martes a Domingo: 10:00 - 18:00. Lunes cerrado.' },
+        { title: 'Cómo llegar', description: 'Metro: Línea 2 (Sol). Bus: 3, 5, 15, 20, 51, 52.' },
+        { title: 'Normas', description: 'No se permite fumar, comer o beber en las salas. Fotografías sin flash.' },
+        { title: 'Accesibilidad', description: 'Totalmente accesible para personas con movilidad reducida.' },
+      ],
       featureFlags: {
         bookings: {
           enabled: true,
           allowPublicCancellation: true,
-          requirePaymentOnBooking: false,
+          requirePaymentOnBooking: true,
           maxAdvanceBookingDays: 90,
           minAdvanceBookingHours: 2,
         },
@@ -52,7 +63,7 @@ async function main() {
         },
         payments: {
           enabled: true,
-          provider: 'stripe',
+          provider: 'redsys',
           requireDeposit: false,
           depositPercentage: 0,
         },
@@ -241,6 +252,17 @@ async function main() {
       locale: 'es-ES',
       currency: 'EUR',
       active: true,
+      siteTitle: 'Parking Centro Ciudad - Reserva tu plaza 24/7',
+      siteDescription: 'Parking cubierto en pleno centro de Madrid. Reserva online tu plaza con acceso 24 horas.',
+      contactEmail: 'info@parkingcentro.com',
+      contactPhone: '+34 91 987 65 43',
+      contactAddress: 'Plaza Mayor, 1, 28012 Madrid, España',
+      usefulInfo: [
+        { title: 'Horario', description: 'Abierto 24 horas, todos los días del año.' },
+        { title: 'Acceso', description: 'Presenta el código QR de tu reserva en la entrada automática.' },
+        { title: 'Salida', description: 'Al salir, escanea tu código QR o introduce tu matrícula.' },
+        { title: 'Seguridad', description: 'Vigilancia 24h y cámaras de seguridad en todas las plantas.' },
+      ],
       featureFlags: {
         bookings: {
           enabled: true,
@@ -256,7 +278,7 @@ async function main() {
         },
         payments: {
           enabled: true,
-          provider: 'stripe',
+          provider: 'redsys',
           requireDeposit: true,
           depositPercentage: 100,
         },

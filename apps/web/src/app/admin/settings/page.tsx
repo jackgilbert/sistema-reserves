@@ -18,7 +18,7 @@ interface FeatureFlags {
   };
   payments: {
     enabled: boolean;
-    provider: 'stripe' | 'none';
+    provider: 'redsys' | 'stripe' | 'none';
     requireDeposit: boolean;
     depositPercentage: number;
   };
@@ -615,9 +615,9 @@ export default function AdminSettingsPage() {
                         value={features.payments.provider}
                         onChange={(e) => updateFeatures(['payments', 'provider'], e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        disabled
                       >
-                        <option value="none">Ninguno</option>
-                        <option value="stripe">Stripe</option>
+                        <option value="redsys">Redsys</option>
                       </select>
                     </div>
 

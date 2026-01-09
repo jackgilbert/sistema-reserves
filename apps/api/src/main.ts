@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import * as express from 'express';
 
 async function bootstrap() {
   // En desarrollo, facilitar el arranque si falta DATABASE_URL.
@@ -13,6 +14,9 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule);
+
+  // Necesario para recibir callbacks de pasarelas (p.ej. Redsys) que envían form-urlencoded.
+  app.use(express.urlencoded({ extended: true }));
 
   // Global exception filter - siempre retorna JSON
   app.useGlobalFilters(new AllExceptionsFilter());
