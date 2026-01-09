@@ -58,6 +58,7 @@ model Instance {
   inventoryBuckets    InventoryBucket[]
   resourceAllocations ResourceAllocation[]
   schedules           Schedule[]
+  discountCodes       DiscountCode[]
   parkingSessions     ParkingSession[]
   gateEvents          GateEvent[]
 
@@ -140,6 +141,7 @@ model Offering {
   resources        Resource[]
   bookings         Booking[]
   holds            Hold[]
+  discountCodes    DiscountCode[]
 
   @@unique([tenantId, slug])
   @@unique([tenantId, id])
