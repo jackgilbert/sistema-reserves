@@ -58,7 +58,6 @@ model Instance {
   inventoryBuckets    InventoryBucket[]
   resourceAllocations ResourceAllocation[]
   schedules           Schedule[]
-  discountCodes       DiscountCode[]
   parkingSessions     ParkingSession[]
   gateEvents          GateEvent[]
 
@@ -141,7 +140,6 @@ model Offering {
   resources        Resource[]
   bookings         Booking[]
   holds            Hold[]
-  discountCodes    DiscountCode[]
 
   @@unique([tenantId, slug])
   @@unique([tenantId, id])
@@ -200,8 +198,6 @@ model InventoryBucket {
   offeringId String
   slotStart  DateTime
   slotEnd    DateTime
-  // Slot variant dimension (e.g. language). Empty string means "default".
-  variantKey String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -216,8 +212,8 @@ model InventoryBucket {
 
   offering Offering @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
 
-  @@unique([tenantId, offeringId, slotStart, variantKey])
-  @@index([tenantId, offeringId, slotStart, variantKey])
+  @@unique([tenantId, offeringId, slotStart])
+  @@index([tenantId, offeringId, slotStart])
   @@index([slotStart, slotEnd])
   @@map("inventory_buckets")
 }
@@ -232,8 +228,6 @@ model Hold {
   offeringId String
   slotStart  DateTime
   slotEnd    DateTime
-  // Slot variant dimension (e.g. language). Empty string means "default".
-  slotVariantKey String @default("")
   quantity   Int
   expiresAt  DateTime
   released   Boolean  @default(false)
@@ -266,8 +260,6 @@ model Booking {
   code        String    @unique // código público de la reserva (para QR)
   slotStart   DateTime
   slotEnd     DateTime
-  // Slot variant dimension (e.g. language). Empty string means "default".
-  slotVariantKey String @default("")
   quantity    Int
   status      String // HOLD, CONFIRMED, CANCELLED, REFUNDED, USED
   totalAmount Int // en centavos
@@ -293,10 +285,6 @@ model Booking {
   // Facturación
   invoice BookingInvoice?
 
-  // Descuentos
-  discountCodeId String?
-  discountCode   DiscountCode? @relation(fields: [discountCodeId], references: [id], onDelete: SetNull)
-
   instance            Instance             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   offering            Offering             @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Restrict)
   items               BookingItem[]
@@ -309,45 +297,9 @@ model Booking {
   @@unique([tenantId, code])
   @@index([tenantId, status])
   @@index([tenantId, offeringId, slotStart])
-  @@index([tenantId, discountCodeId])
   @@index([code])
   @@index([customerEmail])
   @@map("bookings")
-}
-
-model DiscountCode {
-  id        String   @id @default(uuid())
-  tenantId  String
-  code      String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Scope
-  offeringId String?
-
-  // Discount definition
-  // percentOff: 0..100 (100 means free)
-  percentOff Int
-
-  // Usage rules
-  maxRedemptions Int?
-  redemptionCount Int @default(0)
-  startsAt DateTime?
-  endsAt   DateTime?
-
-  // Optional batch id for bulk creation
-  batchId String?
-
-  instance Instance @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  offering Offering? @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
-  bookings Booking[]
-
-  @@unique([tenantId, code])
-  @@index([tenantId, active])
-  @@index([tenantId, offeringId])
-  @@index([tenantId, batchId])
-  @@map("discount_codes")
 }
 
 model BookingInvoice {

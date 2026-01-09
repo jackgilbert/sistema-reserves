@@ -1,18 +1,19 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, Booking } from '@/lib/api';
 import { formatPrice, formatDate, formatTime } from '@/lib/utils';
 import QRCode from 'qrcode';
 
 export default function ConfirmPage({ params }: { params: { code: string } }) {
+  const router = useRouter();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
-  const refreshAttemptsRef = useRef(0);
 
   useEffect(() => {
     async function loadBooking() {
@@ -25,48 +26,8 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
         setLoading(false);
       }
     }
-    refreshAttemptsRef.current = 0;
     loadBooking();
   }, [params.code]);
-
-  useEffect(() => {
-    // Si llegamos aquí antes de que el webhook de pago confirme la reserva,
-    // hacemos un polling acotado para refrescar el estado.
-    if (!booking) return;
-    if (booking.status === 'CONFIRMED') return;
-    if (error) return;
-
-    let cancelled = false;
-    const maxAttempts = 15;
-    const delayMs = 2000;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-
-    const tick = async () => {
-      if (cancelled) return;
-      if (refreshAttemptsRef.current >= maxAttempts) return;
-
-      refreshAttemptsRef.current += 1;
-
-      try {
-        const data = await api.bookings.getByCode(params.code);
-        if (cancelled) return;
-        setBooking(data);
-
-        if (data.status !== 'CONFIRMED') {
-          timeout = setTimeout(tick, delayMs);
-        }
-      } catch {
-        // Ignorar errores puntuales (red/transitorios)
-        if (!cancelled) timeout = setTimeout(tick, delayMs);
-      }
-    };
-
-    timeout = setTimeout(tick, delayMs);
-    return () => {
-      cancelled = true;
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [params.code, booking?.status, error]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,16 +90,6 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
   }
 
   const isConfirmed = booking.status === 'CONFIRMED';
-  const slotVariantKey = (booking as any).slotVariantKey as string | undefined;
-  const slotVariantLabel = (() => {
-    const key = typeof slotVariantKey === 'string' ? slotVariantKey.trim() : '';
-    if (!key) return undefined;
-    const variants = (booking.offering as any)?.metadata?.slotVariants;
-    if (!Array.isArray(variants)) return key;
-    const match = variants.find((v: any) => v && typeof v.key === 'string' && v.key === key);
-    const label = match && typeof match.label === 'string' ? match.label.trim() : '';
-    return label || key;
-  })();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -223,13 +174,6 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
                   <p className="font-medium">{formatDate(booking.slotStart)}</p>
                   <p className="font-medium">{formatTime(booking.slotStart)}</p>
                 </div>
-
-                {slotVariantLabel && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Idioma</p>
-                    <p className="font-medium">{slotVariantLabel}</p>
-                  </div>
-                )}
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Cantidad</p>

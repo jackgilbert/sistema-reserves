@@ -11,13 +11,6 @@ async function main() {
 
   // Limpiar datos existentes
   console.log('🧹 Limpiando datos existentes...');
-  // Tablas nuevas (parking/discounts/tickets/invoices)
-  await prisma.gateEvent.deleteMany();
-  await prisma.parkingSession.deleteMany();
-  await prisma.ticket.deleteMany();
-  await prisma.bookingInvoice.deleteMany();
-  await prisma.discountCode.deleteMany();
-
   await prisma.checkInEvent.deleteMany();
   await prisma.resourceAllocation.deleteMany();
   await prisma.payment.deleteMany();

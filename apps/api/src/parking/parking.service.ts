@@ -147,29 +147,19 @@ export class ParkingService {
       await this.gateService.openGate(gateIdEntry);
     } catch (error) {
       this.logger.error(`Error abriendo barrera ${gateIdEntry}:`, error);
-      // Registro evento de fallo sin dejar una sesión “atascada”
+      // Registro evento de fallo pero no bloqueo sesión
       await this.prisma.gateEvent.create({
         data: {
           tenantId: tenant.tenantId,
-          parkingSessionId: null,
+          parkingSessionId: session.id,
           type: 'ENTRY_ATTEMPT',
           source: 'QR',
           metadata: {
-            error: (error as any)?.message || String(error),
+            error: error.message,
             gateId: gateIdEntry,
-            bookingCode,
-            plate,
-            parkingSessionId: session.id,
           },
         },
       });
-
-      // Limpiar la sesión creada (no se abrió la barrera)
-      try {
-        await this.prisma.parkingSession.delete({ where: { id: session.id } });
-      } catch {
-        // No bloquear la respuesta si ya fue borrada/alterada
-      }
       throw new BadRequestException('Error al abrir barrera de entrada');
     }
 
@@ -303,54 +293,51 @@ export class ParkingService {
       throw new BadRequestException('Sesión ya cerrada');
     }
 
-    // Permitir reintentos: si ya está PAID, reintentar abrir barrera y cerrar.
-    // Si está IN_PROGRESS, exigir quote primero.
-    if (session.status !== 'PAYMENT_PENDING' && session.status !== 'PAID') {
-      throw new BadRequestException('Debe calcular el importe primero (POST /parking/exit/quote)');
+    if (session.status !== 'PAYMENT_PENDING') {
+      throw new BadRequestException(
+        'Debe calcular el importe primero (POST /parking/exit/quote)',
+      );
     }
 
-    let paymentId: string | undefined;
+    // 2) Crear pago (simplificado, sin integración real por ahora)
+    const payment = await this.prisma.payment.create({
+      data: {
+        bookingId: session.bookingId,
+        amount: session.amountDue,
+        currency: 'EUR',
+        status: 'COMPLETED', // En producción esto vendría del webhook
+        provider: paymentMethod || 'parking-terminal',
+        metadata: {
+          sessionId: session.id,
+          minutes: Math.ceil(
+            (now.getTime() - session.entryAt.getTime()) / 60_000,
+          ),
+        },
+      },
+    });
 
-    if (session.status === 'PAYMENT_PENDING') {
-      // 2) Crear pago (simplificado, sin integración real por ahora)
-      const payment = await this.prisma.payment.create({
-        data: {
-          bookingId: session.bookingId,
+    // 3) Marcar sesión como PAID
+    await this.prisma.parkingSession.update({
+      where: { id: session.id },
+      data: {
+        status: 'PAID',
+        paidAt: now,
+      },
+    });
+
+    // 4) Registrar evento pago
+    await this.prisma.gateEvent.create({
+      data: {
+        tenantId: tenant.tenantId,
+        parkingSessionId: session.id,
+        type: 'PAYMENT_OK',
+        source: paymentMethod || 'MANUAL',
+        metadata: {
+          paymentId: payment.id,
           amount: session.amountDue,
-          currency: 'EUR',
-          status: 'COMPLETED', // En producción esto vendría del webhook
-          provider: paymentMethod || 'parking-terminal',
-          metadata: {
-            sessionId: session.id,
-            minutes: Math.ceil((now.getTime() - session.entryAt.getTime()) / 60_000),
-          },
         },
-      });
-      paymentId = payment.id;
-
-      // 3) Marcar sesión como PAID
-      await this.prisma.parkingSession.update({
-        where: { id: session.id },
-        data: {
-          status: 'PAID',
-          paidAt: now,
-        },
-      });
-
-      // 4) Registrar evento pago
-      await this.prisma.gateEvent.create({
-        data: {
-          tenantId: tenant.tenantId,
-          parkingSessionId: session.id,
-          type: 'PAYMENT_OK',
-          source: paymentMethod || 'MANUAL',
-          metadata: {
-            paymentId: payment.id,
-            amount: session.amountDue,
-          },
-        },
-      });
-    }
+      },
+    });
 
     // 5) Abrir barrera salida
     const parkingMeta = (session.booking.offering.metadata as any)?.parking;
@@ -360,19 +347,6 @@ export class ParkingService {
       await this.gateService.openGate(gateIdExit);
     } catch (error) {
       this.logger.error(`Error abriendo barrera salida ${gateIdExit}:`, error);
-      await this.prisma.gateEvent.create({
-        data: {
-          tenantId: tenant.tenantId,
-          parkingSessionId: session.id,
-          type: 'EXIT_ATTEMPT',
-          source: paymentMethod || 'MANUAL',
-          metadata: {
-            gateId: gateIdExit,
-            error: (error as any)?.message || String(error),
-            paymentId,
-          },
-        },
-      });
       throw new BadRequestException('Error al abrir barrera de salida');
     }
 
@@ -394,7 +368,7 @@ export class ParkingService {
         source: 'QR',
         metadata: {
           gateId: gateIdExit,
-          paymentId,
+          paymentId: payment.id,
         },
       },
     });

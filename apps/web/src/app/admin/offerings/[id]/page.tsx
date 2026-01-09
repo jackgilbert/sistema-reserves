@@ -13,10 +13,7 @@ interface Offering {
   currency: string;
   capacity: number | null;
   active: boolean;
-  metadata?: Record<string, any>;
 }
-
-type SlotVariant = { key: string; label?: string };
 
 function formatCentsToEuros(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -45,8 +42,6 @@ export default function AdminOfferingEditPage() {
   const [basePriceEuros, setBasePriceEuros] = useState('');
   const [capacity, setCapacity] = useState<string>('');
   const [active, setActive] = useState(true);
-  const [metadata, setMetadata] = useState<Record<string, any>>({});
-  const [slotVariants, setSlotVariants] = useState<SlotVariant[]>([]);
 
   const authHeaders = useMemo(() => {
     const token = localStorage.getItem('accessToken');
@@ -85,15 +80,6 @@ export default function AdminOfferingEditPage() {
         setBasePriceEuros(formatCentsToEuros(data.basePrice ?? 0));
         setCapacity(data.capacity === null || data.capacity === undefined ? '' : String(data.capacity));
         setActive(!!data.active);
-
-        const nextMetadata = (data.metadata && typeof data.metadata === 'object') ? data.metadata : {};
-        setMetadata(nextMetadata);
-        const loadedVariants = Array.isArray(nextMetadata.slotVariants) ? nextMetadata.slotVariants : [];
-        setSlotVariants(
-          (loadedVariants as any[])
-            .filter((v) => v && typeof v.key === 'string')
-            .map((v) => ({ key: String(v.key), label: typeof v.label === 'string' ? v.label : '' })),
-        );
       } catch (err: any) {
         setError(err?.message || 'Error al cargar la oferta');
       } finally {
@@ -130,15 +116,6 @@ export default function AdminOfferingEditPage() {
           basePrice,
           capacity: capacityValue,
           active,
-          metadata: {
-            ...(metadata || {}),
-            slotVariants: slotVariants
-              .map((v) => ({
-                key: (v.key || '').trim(),
-                label: (v.label || '').trim(),
-              }))
-              .filter((v) => v.key.length > 0),
-          },
         }),
       });
 
@@ -255,67 +232,6 @@ export default function AdminOfferingEditPage() {
             <label htmlFor="active" className="text-sm text-gray-700">
               Activa
             </label>
-          </div>
-
-          <div className="border-t pt-4">
-            <h2 className="text-base font-semibold text-gray-900">Idiomas (slotVariants)</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Define claves como <span className="font-mono">lang:es</span>, <span className="font-mono">lang:en</span>.
-            </p>
-
-            <div className="mt-3 space-y-2">
-              {slotVariants.length === 0 ? (
-                <div className="text-sm text-gray-600">Sin idiomas configurados.</div>
-              ) : (
-                slotVariants.map((v, idx) => (
-                  <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                    <div className="sm:col-span-5">
-                      <label className="block text-xs font-medium text-gray-700">Key</label>
-                      <input
-                        value={v.key}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setSlotVariants((prev) => prev.map((x, i) => (i === idx ? { ...x, key: next } : x)));
-                        }}
-                        placeholder="lang:es"
-                        className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="sm:col-span-5">
-                      <label className="block text-xs font-medium text-gray-700">Label</label>
-                      <input
-                        value={v.label || ''}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setSlotVariants((prev) => prev.map((x, i) => (i === idx ? { ...x, label: next } : x)));
-                        }}
-                        placeholder="Español"
-                        className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="sm:col-span-2 flex sm:justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setSlotVariants((prev) => prev.filter((_, i) => i !== idx))}
-                        className="mt-5 sm:mt-6 text-sm font-medium text-red-600 hover:text-red-700"
-                      >
-                        Quitar
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={() => setSlotVariants((prev) => [...prev, { key: '', label: '' }])}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
-              >
-                + Añadir idioma
-              </button>
-            </div>
           </div>
 
           <div className="pt-2 flex justify-end">

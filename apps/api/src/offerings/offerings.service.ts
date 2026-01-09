@@ -15,7 +15,6 @@ export interface CreateOfferingDto {
   currency?: string;
   capacity?: number;
   active?: boolean;
-  metadata?: Record<string, any>;
   schedule?: {
     daysOfWeek: number[];
     startTime: string;
@@ -35,7 +34,6 @@ export interface UpdateOfferingDto {
   capacity?: number;
   active?: boolean;
   priceVariants?: Array<{ name: string; price: number; description?: string }>;
-  metadata?: Record<string, any>;
 }
 
 export interface CreateResourceDto {
@@ -63,7 +61,6 @@ export class OfferingsService {
       currency,
       capacity,
       active,
-      metadata,
       schedule,
       priceVariants,
     } = dto;
@@ -95,7 +92,6 @@ export class OfferingsService {
         capacity: capacity || null,
         active: active !== undefined ? active : true,
         priceVariants: priceVariants || [],
-        metadata: metadata && typeof metadata === 'object' ? metadata : {},
         schedules: schedule
           ? {
               create: {
@@ -249,7 +245,6 @@ export class OfferingsService {
     if (dto.capacity !== undefined) data.capacity = dto.capacity ?? null;
     if (dto.active !== undefined) data.active = dto.active;
     if (dto.priceVariants !== undefined) data.priceVariants = dto.priceVariants;
-    if (dto.metadata !== undefined) data.metadata = dto.metadata;
 
     if (Object.keys(data).length === 0) {
       return this.findOne(id, tenant);

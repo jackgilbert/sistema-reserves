@@ -101,19 +101,9 @@ export const api = {
   },
   
   availability: {
-    get: (
-      offeringId: string,
-      startDate: string,
-      endDate: string,
-      slotVariantKey?: string,
-    ) =>
+    get: (offeringId: string, startDate: string, endDate: string) =>
       fetchApi<Record<string, AvailabilitySlot[]>>('/availability', {
-        params: {
-          offeringId,
-          startDate,
-          endDate,
-          ...(slotVariantKey ? { slotVariantKey } : {}),
-        },
+        params: { offeringId, startDate, endDate },
       }),
   },
 
@@ -166,13 +156,7 @@ export const api = {
   },
 
   payments: {
-    checkout: (data: {
-      holdId: string;
-      email: string;
-      name: string;
-      phone?: string;
-      discountCode?: string;
-    }) =>
+    checkout: (data: { holdId: string; email: string; name: string; phone?: string }) =>
       fetchApi<
         | { provider: 'none'; bookingCode: string; bookingStatus: string }
         | {
@@ -190,17 +174,6 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-  },
-
-  discounts: {
-    validate: (data: { code: string; offeringId?: string }) =>
-      fetchApi<{ id: string; code: string; percentOff: number; offeringId?: string | null }>(
-        '/discounts/validate',
-        {
-          method: 'POST',
-          body: JSON.stringify(data),
-        },
-      ),
   },
 };
 
@@ -246,7 +219,6 @@ export interface CreateHoldData {
   slotStart: string;
   slotEnd: string;
   quantity: number;
-  slotVariantKey?: string;
   priceVariantName?: string;
   ticketQuantities?: {
     standard?: number;
@@ -288,8 +260,6 @@ export interface Booking {
   offeringId: string;
   slotStart: string;
   slotEnd: string;
-  slotVariantKey?: string;
-  slotVariantLabel?: string;
   quantity: number;
   status: string;
   totalAmount: number;

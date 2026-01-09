@@ -4,9 +4,7 @@ function tryExtractBookingCode(dsMerchantParameters: string | null): string | nu
   if (!dsMerchantParameters) return null;
 
   try {
-    // application/x-www-form-urlencoded puede convertir '+' en espacios.
-    const normalized = dsMerchantParameters.replace(/\s/g, '+');
-    const json = Buffer.from(normalized, 'base64').toString('utf8');
+    const json = Buffer.from(dsMerchantParameters, 'base64').toString('utf8');
     const payload = JSON.parse(json) as any;
 
     const code = payload?.Ds_MerchantData;

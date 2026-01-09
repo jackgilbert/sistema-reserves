@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Headers,
-  HttpCode,
   Post,
   Req,
 } from '@nestjs/common';
@@ -30,10 +29,6 @@ class CheckoutFromHoldDto {
   @IsOptional()
   @IsString()
   phone?: string;
-
-  @IsOptional()
-  @IsString()
-  discountCode?: string;
 }
 
 @ApiTags('Payments')
@@ -45,10 +40,9 @@ export class PaymentsController {
   ) {}
 
   @Post('checkout')
-  @HttpCode(200)
   @ApiOperation({ summary: 'Iniciar checkout desde un hold (público)' })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
-  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 201 })
   async checkoutFromHold(
     @Body() dto: CheckoutFromHoldDto,
     @Headers('x-tenant-domain') domain: string,
@@ -70,7 +64,6 @@ export class PaymentsController {
 
   // Redsys callbacks: Redsys envía application/x-www-form-urlencoded
   @Post('redsys/notify')
-  @HttpCode(200)
   @ApiOperation({ summary: 'Redsys notificación (merchantURL)' })
   @ApiResponse({ status: 200 })
   async redsysNotify(@Body() body: Record<string, any>) {

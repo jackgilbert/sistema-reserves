@@ -20,7 +20,6 @@ export class HoldsService {
     slotStart: Date,
     slotEnd: Date,
     quantity: number,
-    slotVariantKey: string | undefined,
     ticketQuantities:
       | {
           standard?: number;
@@ -32,8 +31,6 @@ export class HoldsService {
     tenant: TenantContext,
   ) {
     try {
-      const resolvedSlotVariantKey =
-        typeof slotVariantKey === 'string' ? slotVariantKey.trim() : '';
       // Verificar que la offering existe y está activa
       const offering = await this.prisma.offering.findFirst({
         where: {
@@ -54,12 +51,6 @@ export class HoldsService {
           )
         : [];
 
-      const normalizeVariantName = (name: string) => name.trim().toLowerCase();
-      const adultVariantName = variants.find((v) => {
-        const n = normalizeVariantName(v.name);
-        return n === 'adult' || n === 'adulto';
-      })?.name;
-
       const normalizeQty = (n: unknown): number => {
         if (typeof n !== 'number' || !Number.isFinite(n)) return 0;
         return Math.max(0, Math.floor(n));
@@ -71,7 +62,7 @@ export class HoldsService {
         | undefined;
 
       if (ticketQuantities) {
-        let standard = normalizeQty(ticketQuantities.standard);
+        const standard = normalizeQty(ticketQuantities.standard);
         const variantsMap: Record<string, number> = {};
 
         const incomingVariants = ticketQuantities.variants || {};
@@ -81,12 +72,6 @@ export class HoldsService {
             const q = normalizeQty(qty);
             if (q > 0) variantsMap[name] = q;
           }
-        }
-
-        // Si existe una variante explícita de Adult/Adulto, tratamos "standard" como alias y lo fusionamos.
-        if (adultVariantName && standard > 0) {
-          variantsMap[adultVariantName] = (variantsMap[adultVariantName] || 0) + standard;
-          standard = 0;
         }
 
         const sumVariants = Object.values(variantsMap).reduce((a, b) => a + b, 0);
@@ -131,11 +116,10 @@ export class HoldsService {
         // 1. Buscar o crear inventory bucket
         let bucket = await tx.inventoryBucket.findUnique({
           where: {
-            tenantId_offeringId_slotStart_variantKey: {
+            tenantId_offeringId_slotStart: {
               tenantId: tenant.tenantId,
               offeringId,
               slotStart,
-              variantKey: resolvedSlotVariantKey,
             },
           },
         });
@@ -148,7 +132,6 @@ export class HoldsService {
               offeringId,
               slotStart,
               slotEnd,
-              variantKey: resolvedSlotVariantKey,
               totalCapacity:
                 offering.type === 'CAPACITY' ? offering.capacity || 0 : 1,
               heldCapacity: 0,
@@ -159,11 +142,10 @@ export class HoldsService {
           // Re-fetch para tener datos actualizados
           bucket = await tx.inventoryBucket.findUnique({
             where: {
-              tenantId_offeringId_slotStart_variantKey: {
+              tenantId_offeringId_slotStart: {
                 tenantId: tenant.tenantId,
                 offeringId,
                 slotStart,
-                variantKey: resolvedSlotVariantKey,
               },
             },
           });
@@ -190,7 +172,6 @@ export class HoldsService {
             offeringId,
             slotStart,
             slotEnd,
-            slotVariantKey: resolvedSlotVariantKey,
             quantity: resolvedTotalQty,
             expiresAt,
             customerEmail: customerData.email || null,
@@ -206,11 +187,10 @@ export class HoldsService {
         // 4. Actualizar inventario (incrementar held)
         await tx.inventoryBucket.update({
           where: {
-            tenantId_offeringId_slotStart_variantKey: {
+            tenantId_offeringId_slotStart: {
               tenantId: tenant.tenantId,
               offeringId,
               slotStart,
-              variantKey: resolvedSlotVariantKey,
             },
           },
           data: {
@@ -295,8 +275,7 @@ export class HoldsService {
     const holdIds: string[] = [];
 
     for (const hold of expiredHolds) {
-      const variantKey = (hold as any).slotVariantKey || '';
-      const bucketKey = `${hold.tenantId}:${hold.offeringId}:${hold.slotStart.toISOString()}:${variantKey}`;
+      const bucketKey = `${hold.tenantId}:${hold.offeringId}:${hold.slotStart.toISOString()}`;
       bucketUpdates.set(
         bucketKey,
         (bucketUpdates.get(bucketKey) || 0) + hold.quantity,
@@ -308,7 +287,6 @@ export class HoldsService {
     try {
       await this.prisma.$transaction(
         async (tx) => {
-          const txAny = tx as any;
           // Marcar todos los holds como liberados en una sola operación
           await tx.hold.updateMany({
             where: {
@@ -321,67 +299,17 @@ export class HoldsService {
             },
           });
 
-          // Cancelar bookings pendientes asociados a estos holds.
-          // Importante para flujos de pago: evita que queden bookings HOLD huérfanos
-          // y permite revertir reservas de descuentos si se habían contabilizado al iniciar checkout.
-          const pendingBookings = await tx.booking.findMany({
-            where: {
-              status: 'HOLD',
-              OR: holdIds.map((id) =>
-                ({
-                  metadata: {
-                    path: ['holdId'],
-                    equals: id,
-                  } as any,
-                }) as any,
-              ),
-            },
-            select: {
-              id: true,
-              tenantId: true,
-              discountCodeId: true,
-            },
-          });
-
-          if (pendingBookings.length > 0) {
-            await tx.booking.updateMany({
-              where: {
-                id: { in: pendingBookings.map((b) => b.id) },
-              },
-              data: {
-                status: 'CANCELLED',
-                cancelledAt: new Date(),
-              },
-            });
-
-            // Revertir redenciones reservadas (si aplica)
-            for (const b of pendingBookings) {
-              if (!b.discountCodeId) continue;
-              await txAny.discountCode.updateMany({
-                where: {
-                  id: b.discountCodeId,
-                  tenantId: b.tenantId,
-                  redemptionCount: { gt: 0 },
-                },
-                data: {
-                  redemptionCount: { decrement: 1 },
-                },
-              });
-            }
-          }
-
           // Actualizar buckets de inventario
           for (const [bucketKey, totalQuantity] of bucketUpdates.entries()) {
-            const [tenantId, offeringId, slotStartStr, variantKey] = bucketKey.split(':');
+            const [tenantId, offeringId, slotStartStr] = bucketKey.split(':');
             const slotStart = new Date(slotStartStr);
 
             await tx.inventoryBucket.update({
               where: {
-                tenantId_offeringId_slotStart_variantKey: {
+                tenantId_offeringId_slotStart: {
                   tenantId,
                   offeringId,
                   slotStart,
-                  variantKey: variantKey || '',
                 },
               },
               data: {

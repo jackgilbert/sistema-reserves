@@ -5,6 +5,6 @@ import { PrismaClient } from '@sistema-reservas/db';
 @Global()
 @Module({
   providers: [TenantService, PrismaClient],
-  exports: [TenantService],
+  exports: [TenantService, PrismaClient],
 })
 export class TenantModule {}

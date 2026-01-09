@@ -9,6 +9,9 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "db:generate": "pnpm -C packages/db db:generate",
+    "db:migrate": "pnpm -C packages/db db:migrate",
+    "db:seed": "pnpm -C packages/db db:seed",
     "clean": "pnpm -r clean"
   },
   "keywords": [

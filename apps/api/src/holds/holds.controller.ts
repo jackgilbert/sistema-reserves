@@ -42,14 +42,6 @@ class CreateHoldDto {
   @Min(1)
   quantity: number;
 
-  @ApiProperty({
-    description: 'Clave de variante del slot (ej: lang:es, lang:en). Vacío = default',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  slotVariantKey?: string;
-
   @ApiProperty({ description: 'Email del cliente', required: false })
   @IsOptional()
   @IsEmail()
@@ -112,7 +104,6 @@ export class HoldsController {
         new Date(dto.slotStart),
         new Date(dto.slotEnd),
         dto.quantity,
-        dto.slotVariantKey,
         dto.ticketQuantities,
         dto.priceVariantName,
         { email: dto.email, name: dto.name, phone: dto.phone },

@@ -44,13 +44,17 @@ function encrypt3DES(order: string, key: Buffer): Buffer {
 export class RedsysService {
   generateOrder(): string {
     // Redsys requiere un order de 4-12 caracteres (habitualmente numérico).
-    // Debe ser altamente único para evitar colisiones entre tenants/checkouts.
-    // Usamos epoch ms + 2 dígitos aleatorios y nos quedamos con los últimos 12 dígitos.
-    const rand2 = Math.floor(Math.random() * 100)
-      .toString()
-      .padStart(2, '0');
-    const raw = `${Date.now()}${rand2}`;
-    return raw.slice(-12);
+    // Generamos uno de 12 dígitos: YYMMDDHHMMSS (12) truncado y con random si hace falta.
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const base = `${yy}${mm}${dd}${hh}${mi}${ss}`;
+    // Si por algún motivo no fuese 12, aseguramos longitud.
+    return base.slice(0, 12).padEnd(12, '0');
   }
 
   private getConfig(): RedsysConfig {
