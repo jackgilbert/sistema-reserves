@@ -104,54 +104,54 @@ export class SettingsService {
         currency: true,
         stripeAccount: true,
         featureFlags: true,
-        extendedSettings: true,
+        contactEmail: true,
+        contactPhone: true,
+        contactAddress: true,
+        siteTitle: true,
+        siteDescription: true,
       },
     });
 
     if (!instance) {
-      throw new NotFoundException('Tenant no encontrado');
+      throw new NotFoundException('Instancia no encontrada');
     }
 
-    // Obtener extended settings y hacer merge con defaults
-    const extendedSettings = (instance.extendedSettings as any) || {};
-
+    // Extended settings removed - using instance fields and defaults
     // Construir settings desde la instance actual
     const settings: TenantSettings = {
       general: {
         businessName: instance.name,
-        businessType: extendedSettings.general?.businessType || 'other',
-        contactEmail:
-          extendedSettings.general?.contactEmail || 'info@example.com',
-        contactPhone: extendedSettings.general?.contactPhone,
-        address: extendedSettings.general?.address,
-        description: extendedSettings.general?.description,
+        businessType: 'other',
+        contactEmail: instance.contactEmail || 'info@example.com',
+        contactPhone: instance.contactPhone || undefined,
+        address: instance.contactAddress || undefined,
+        description: instance.siteDescription || undefined,
       },
       regional: {
         timezone: instance.timezone,
         locale: instance.locale,
         currency: instance.currency,
-        dateFormat: extendedSettings.regional?.dateFormat || 'dd/MM/yyyy',
-        timeFormat: extendedSettings.regional?.timeFormat || '24h',
+        dateFormat: 'dd/MM/yyyy',
+        timeFormat: '24h',
       },
       branding: {
         logo: instance.logo || undefined,
         primaryColor: instance.primaryColor,
         secondaryColor: instance.secondaryColor,
-        accentColor: extendedSettings.branding?.accentColor,
-        customCSS: extendedSettings.branding?.customCSS,
+        accentColor: undefined,
+        customCSS: undefined,
       },
-      policies: extendedSettings.policies || DEFAULT_TENANT_SETTINGS.policies,
-      booking: extendedSettings.booking || DEFAULT_TENANT_SETTINGS.booking,
-      notifications:
-        extendedSettings.notifications || DEFAULT_TENANT_SETTINGS.notifications,
+      policies: DEFAULT_TENANT_SETTINGS.policies,
+      booking: DEFAULT_TENANT_SETTINGS.booking,
+      notifications: DEFAULT_TENANT_SETTINGS.notifications,
       integrations: {
         stripeEnabled: !!instance.stripeAccount,
-        stripePublicKey: extendedSettings.integrations?.stripePublicKey,
-        googleAnalyticsId: extendedSettings.integrations?.googleAnalyticsId,
-        customWebhookUrl: extendedSettings.integrations?.customWebhookUrl,
+        stripePublicKey: undefined,
+        googleAnalyticsId: undefined,
+        customWebhookUrl: undefined,
       },
-      tax: extendedSettings.tax || DEFAULT_TENANT_SETTINGS.tax,
-      seo: extendedSettings.seo || {},
+      tax: DEFAULT_TENANT_SETTINGS.tax,
+      seo: {},
     };
 
     return settings;
@@ -186,33 +186,14 @@ export class SettingsService {
         updates.secondaryColor = dto.branding.secondaryColor;
     }
 
-    // Actualizar extendedSettings con el resto de la configuración
-    const extendedSettings = this.deepMerge(currentSettings, dto);
+    // Update simple instance fields for other settings
+    if (dto.general?.contactEmail) updates.contactEmail = dto.general.contactEmail;
+    if (dto.general?.contactPhone) updates.contactPhone = dto.general.contactPhone;
+    if (dto.general?.address) updates.contactAddress = dto.general.address;
+    if (dto.general?.description) updates.siteDescription = dto.general.description;
 
-    // Remover campos que se guardan en columnas dedicadas
-    delete extendedSettings.general?.businessName;
-
-    updates.extendedSettings = {
-      general: extendedSettings.general,
-      regional: {
-        dateFormat: extendedSettings.regional.dateFormat,
-        timeFormat: extendedSettings.regional.timeFormat,
-      },
-      branding: {
-        accentColor: extendedSettings.branding.accentColor,
-        customCSS: extendedSettings.branding.customCSS,
-      },
-      policies: extendedSettings.policies,
-      booking: extendedSettings.booking,
-      notifications: extendedSettings.notifications,
-      integrations: {
-        stripePublicKey: extendedSettings.integrations.stripePublicKey,
-        googleAnalyticsId: extendedSettings.integrations.googleAnalyticsId,
-        customWebhookUrl: extendedSettings.integrations.customWebhookUrl,
-      },
-      tax: extendedSettings.tax,
-      seo: extendedSettings.seo,
-    };
+    // Note: Extended settings removed from schema
+    // Additional settings should be stored in metadata or feature flags JSON fields
 
     if (Object.keys(updates).length > 0) {
       await this.prisma.instance.update({

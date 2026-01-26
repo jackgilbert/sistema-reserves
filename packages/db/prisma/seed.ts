@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@sistema-reservas/db';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();

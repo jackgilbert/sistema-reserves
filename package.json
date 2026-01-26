@@ -23,6 +23,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@zxing/browser": "^0.1.5"
+    "@zxing/browser": "^0.1.5",
+    "multer": "^2.0.2",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/multer": "^2.0.0",
+    "@types/uuid": "^11.0.0"
   }
 }

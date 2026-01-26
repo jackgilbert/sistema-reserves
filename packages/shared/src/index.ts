@@ -40,6 +40,27 @@ export const DayOfWeek = {
 
 export type DayOfWeek = typeof DayOfWeek[keyof typeof DayOfWeek];
 
+// Price Variant types
+export interface PriceVariant {
+  name: string; // e.g., "adult", "senior", "child", "student"
+  label: string; // e.g., "Adult", "Senior (65+)", "Child (3-12)"
+  price: number; // price in cents
+  description?: string;
+  minAge?: number; // optional age restrictions
+  maxAge?: number;
+  sortOrder?: number; // for display ordering
+}
+
+// Availability Override types
+export const AvailabilityOverrideType = {
+  BLACKOUT: 'BLACKOUT',
+  CAPACITY_OVERRIDE: 'CAPACITY_OVERRIDE',
+  PRICE_OVERRIDE: 'PRICE_OVERRIDE',
+  CUSTOM: 'CUSTOM'
+} as const;
+
+export type AvailabilityOverrideType = typeof AvailabilityOverrideType[keyof typeof AvailabilityOverrideType];
+
 export interface TenantContext {
   tenantId: string;
   instanceSlug: string;
@@ -53,6 +74,12 @@ export interface BrandingConfig {
   secondaryColor: string;
 }
 
-export interface FeatureFlags {
+export type FeatureFlags = {
   [key: string]: boolean;
-}
+};
+
+// Export price variant utilities
+export * from './price-variants';
+
+// Export i18n utilities
+export * from './i18n';
