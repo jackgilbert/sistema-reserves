@@ -2,7 +2,18 @@
  * Price variant utilities for handling multi-tier pricing
  */
 
-import type { PriceVariant } from './index';
+/**
+ * Price variant definition
+ */
+export interface PriceVariant {
+  name: string; // e.g., "adult", "senior", "child", "student"
+  label: string; // e.g., "Adult", "Senior (65+)", "Child (3-12)"
+  price: number; // price in cents
+  description?: string;
+  minAge?: number; // optional age restrictions
+  maxAge?: number;
+  sortOrder?: number; // for display ordering
+}
 
 /**
  * Selected variant quantities for a booking

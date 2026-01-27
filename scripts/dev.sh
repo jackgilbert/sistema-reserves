@@ -39,10 +39,9 @@ done
 # Asegurar schema y datos mínimos para desarrollo
 echo "🗄️  Verificando base de datos (schema/datos demo)..."
 
-# Sincronizar schema (idempotente). Evita fallos por columnas nuevas faltantes
-# (por ejemplo: instances.extendedSettings).
-echo "⚙️  Sincronizando schema (pnpm -C packages/db db:push)..."
-pnpm -C packages/db db:push
+# Apply pending migrations (safer than db:push)
+echo "⚙️  Aplicando migraciones (pnpm -C packages/db db:migrate:deploy)..."
+pnpm -C packages/db db:migrate:deploy
 
 # Si no hay instancias, cargar seed demo (borra y recrea, pero sólo si está vacío)
 INSTANCE_COUNT=$(docker exec sistema-reservas-db psql -U reservas -d sistema_reservas -tAc "select count(*) from instances;" | tr -d '[:space:]')

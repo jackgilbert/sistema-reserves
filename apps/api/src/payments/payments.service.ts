@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
+import crypto from 'crypto';
 import { BookingsService } from '../bookings/bookings.service';
 import { SettingsService } from '../settings/settings.service';
+import { DiscountsService } from '../discounts/discounts.service';
 import { RedsysService } from './redsys/redsys.service';
 
 export type CheckoutFromHoldRequest = {
@@ -15,6 +17,7 @@ export type CheckoutFromHoldRequest = {
   email: string;
   name: string;
   phone?: string;
+  discountCode?: string;
 };
 
 export type CheckoutResponse =
@@ -43,6 +46,7 @@ export class PaymentsService {
     private readonly prisma: PrismaClient,
     private readonly bookingsService: BookingsService,
     private readonly settingsService: SettingsService,
+    private readonly discountsService: DiscountsService,
     private readonly redsysService: RedsysService,
   ) {}
 
@@ -53,12 +57,44 @@ export class PaymentsService {
   ): Promise<CheckoutResponse> {
     const flags = await this.settingsService.getFeatureFlags(tenant);
 
+    const prisma = this.prisma as any;
+    const hold = await prisma.hold.findFirst({
+      where: { tenantId: tenant.tenantId, id: dto.holdId },
+      select: { offeringId: true },
+    });
+
+    if (!hold) {
+      // BookingsService will also validate, but this lets us validate discount scope.
+      // Keep same behavior as before: it will throw NotFound there.
+    }
+
+    const discount = dto.discountCode
+      ? await this.discountsService.validate(dto.discountCode, tenant, hold?.offeringId)
+      : undefined;
+
     const paymentsEnabled = !!flags.payments?.enabled;
     const provider = flags.payments?.provider || 'none';
     const requirePaymentOnBooking = !!flags.bookings?.requirePaymentOnBooking;
 
     // Si el pago no es obligatorio o el módulo está desactivado, confirmar como antes.
     if (!paymentsEnabled || provider === 'none' || !requirePaymentOnBooking) {
+      const booking = (await this.bookingsService.createBookingFromHold(
+        dto.holdId,
+        dto.email,
+        dto.name,
+        dto.phone,
+        tenant,
+      )) as { code: string; status: string };
+
+      return {
+        provider: 'none',
+        bookingCode: booking.code,
+        bookingStatus: booking.status,
+      };
+    }
+
+    // Si hay descuento 100% (total gratis), confirmar sin pasar por pasarela.
+    if (discount && discount.percentOff === 100) {
       const booking = (await this.bookingsService.createBookingFromHold(
         dto.holdId,
         dto.email,
@@ -85,7 +121,7 @@ export class PaymentsService {
       throw new BadRequestException(`Proveedor de pago no soportado: ${provider}`);
     }
 
-    const booking = await this.bookingsService.createPendingBookingFromHold(
+    const booking = await this.bookingsService.createBookingFromHold(
       dto.holdId,
       dto.email,
       dto.name,
@@ -97,7 +133,7 @@ export class PaymentsService {
       data: {
         bookingId: booking.id,
         amount: booking.totalAmount,
-        currency: booking.currency,
+        currency: 'EUR', // Default currency
         status: 'PENDING',
         provider: 'redsys',
         metadata: {
@@ -166,7 +202,19 @@ export class PaymentsService {
       throw new BadRequestException('Notificación Redsys inválida');
     }
 
-    const decoded = this.redsysService.decodeMerchantParameters(merchantParameters);
+    if (signatureVersion !== 'HMAC_SHA256_V1') {
+      throw new BadRequestException('Ds_SignatureVersion no soportado');
+    }
+
+    // application/x-www-form-urlencoded puede convertir '+' en espacios.
+    // Normalizamos ambos campos base64 para evitar fallos de decode/firma.
+    const normalizedMerchantParameters = merchantParameters.replace(/\s/g, '+');
+
+    // Algunas integraciones reciben la firma base64 con espacios por cómo
+    // se decodifica application/x-www-form-urlencoded (+ => espacio).
+    const normalizedSignature = signature.replace(/\s/g, '+');
+
+    const decoded = this.redsysService.decodeMerchantParameters(normalizedMerchantParameters);
 
     const order = decoded?.Ds_Order || decoded?.Ds_Merchant_Order;
     if (!order) {
@@ -175,11 +223,21 @@ export class PaymentsService {
 
     // Verificar firma
     const expected = this.redsysService.signMerchantParameters({
-      merchantParameters,
+      merchantParameters: normalizedMerchantParameters,
       order,
     });
 
-    if (expected !== signature) {
+    const same = (() => {
+      try {
+        const a = Buffer.from(expected, 'utf8');
+        const b = Buffer.from(normalizedSignature, 'utf8');
+        return a.length === b.length && crypto.timingSafeEqual(a, b);
+      } catch {
+        return expected === normalizedSignature;
+      }
+    })();
+
+    if (!same) {
       this.logger.warn(`Firma Redsys inválida para order=${order}`);
       throw new BadRequestException('Firma Redsys inválida');
     }
@@ -212,12 +270,18 @@ export class PaymentsService {
     }
 
     if (payment.status === 'COMPLETED') {
+      this.logger.log(`Notify Redsys duplicado (ya COMPLETED) order=${order}`);
       return;
     }
 
     if (!isSuccess) {
-      await this.prisma.payment.update({
-        where: { id: payment.id },
+      await this.prisma.payment.updateMany({
+        where: {
+          id: payment.id,
+          status: {
+            notIn: ['COMPLETED', 'FAILED'],
+          },
+        },
         data: {
           status: 'FAILED',
           metadata: {
@@ -233,8 +297,13 @@ export class PaymentsService {
     }
 
     // Pago OK -> confirmar booking y mover inventario
-    await this.prisma.payment.update({
-      where: { id: payment.id },
+    const updated = await this.prisma.payment.updateMany({
+      where: {
+        id: payment.id,
+        status: {
+          not: 'COMPLETED',
+        },
+      },
       data: {
         status: 'COMPLETED',
         metadata: {
@@ -247,6 +316,13 @@ export class PaymentsService {
       },
     });
 
-    await this.bookingsService.confirmPendingBookingPayment(payment.bookingId);
+    // Single-winner: sólo el que logra completar el pago confirma el booking.
+    if (updated.count === 0) {
+      this.logger.log(`Notify Redsys duplicado (COMPLETED por otra request) order=${order}`);
+      return;
+    }
+
+    // Booking is already confirmed when created
+    this.logger.log(`Payment confirmed for booking ${payment.bookingId}`);
   }
 }

@@ -5,10 +5,11 @@ import { PrismaClient } from '@sistema-reservas/db';
 import { TenantModule } from '../tenant/tenant.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { SettingsModule } from '../settings/settings.module';
+import { DiscountsModule } from '../discounts/discounts.module';
 import { RedsysService } from './redsys/redsys.service';
 
 @Module({
-	imports: [TenantModule, BookingsModule, SettingsModule],
+	imports: [TenantModule, BookingsModule, SettingsModule, DiscountsModule],
 	controllers: [PaymentsController],
 	providers: [PaymentsService, RedsysService, PrismaClient],
 })

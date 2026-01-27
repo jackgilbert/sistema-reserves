@@ -40,17 +40,6 @@ export const DayOfWeek = {
 
 export type DayOfWeek = typeof DayOfWeek[keyof typeof DayOfWeek];
 
-// Price Variant types
-export interface PriceVariant {
-  name: string; // e.g., "adult", "senior", "child", "student"
-  label: string; // e.g., "Adult", "Senior (65+)", "Child (3-12)"
-  price: number; // price in cents
-  description?: string;
-  minAge?: number; // optional age restrictions
-  maxAge?: number;
-  sortOrder?: number; // for display ordering
-}
-
 // Availability Override types
 export const AvailabilityOverrideType = {
   BLACKOUT: 'BLACKOUT',
@@ -78,8 +67,64 @@ export type FeatureFlags = {
   [key: string]: boolean;
 };
 
-// Export price variant utilities
-export * from './price-variants';
+// Price Variant types (inline to avoid ESM resolution issues)
+export interface PriceVariant {
+  name: string;
+  label: string;
+  price: number;
+  description?: string;
+  minAge?: number;
+  maxAge?: number;
+  sortOrder?: number;
+}
 
-// Export i18n utilities
-export * from './i18n';
+export interface VariantSelection {
+  variantKey: string;
+  quantity: number;
+}
+
+export interface PriceBreakdown {
+  basePrice: number;
+  currency: string;
+  variants: Array<{
+    key: string;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+  }>;
+  total: number;
+}
+
+// i18n types (inline to avoid ESM resolution issues)
+export const SupportedLanguages = {
+  ES: 'es',
+  EN: 'en',
+  CA: 'ca',
+  FR: 'fr',
+  DE: 'de',
+} as const;
+
+export type SupportedLanguage = typeof SupportedLanguages[keyof typeof SupportedLanguages];
+
+export interface TranslatedText {
+  es?: string;
+  en?: string;
+  ca?: string;
+  fr?: string;
+  de?: string;
+}
+
+export interface OfferingTranslations {
+  [lang: string]: {
+    name: string;
+    description?: string;
+  };
+}
+
+export interface SiteTranslations {
+  [lang: string]: {
+    siteTitle?: string;
+    siteDescription?: string;
+    [key: string]: string | undefined;
+  };
+}
