@@ -4,12 +4,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, Offering, AvailabilitySlot } from '@/lib/api';
 import { formatPrice, formatDate, formatTime, addDays, toISODate } from '@/lib/utils';
+import { useLocale } from '@/components/LocaleProvider';
 
 export default function OfferingPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { locale } = useLocale();
   const [offering, setOffering] = useState<Offering | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDateKey, setSelectedDateKey] = useState<string>('');
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [availabilityMap, setAvailabilityMap] = useState<Record<string, AvailabilitySlot[]>>({});
+  const [availableDateKeys, setAvailableDateKeys] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
   const [standardQty, setStandardQty] = useState(1);
   const [variantQty, setVariantQty] = useState<Record<string, number>>({});
@@ -18,13 +22,18 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState<string | null>(null);
 
   const variants = offering?.priceVariants ?? [];
+  const hasVariants = variants.length > 0;
+  const effectiveStandardQty = hasVariants ? 0 : standardQty;
   const available = selectedSlot ? selectedSlot.available : 0;
+  const selectedDate = selectedDateKey
+    ? new Date(`${selectedDateKey}T00:00:00`)
+    : new Date();
   const totalSelected =
-    standardQty +
+    effectiveStandardQty +
     Object.values(variantQty).reduce((acc, n) => acc + (Number.isFinite(n) ? n : 0), 0);
 
   const totalAmount =
-    (offering?.basePrice ?? 0) * standardQty +
+    (offering?.basePrice ?? 0) * effectiveStandardQty +
     variants.reduce((acc, v) => acc + v.price * (variantQty[v.name] || 0), 0);
 
   const clampChange = (current: number, next: number, otherSum: number) => {
@@ -38,6 +47,9 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
       try {
         const data = await api.offerings.getById(params.id);
         setOffering(data);
+        if (Array.isArray(data?.priceVariants) && data.priceVariants.length > 0) {
+          setStandardQty(0);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Error al cargar la oferta');
       } finally {
@@ -47,31 +59,57 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
     loadOffering();
   }, [params.id]);
 
-  // Cargar disponibilidad cuando cambia la fecha
+  // Cargar disponibilidad para los próximos días y filtrar fechas con slots
   useEffect(() => {
     if (!offering) return;
 
     async function loadAvailability() {
       setLoadingSlots(true);
       try {
-        const startDate = toISODate(selectedDate);
-        const endDate = toISODate(addDays(selectedDate, 1));
-        const data = await api.availability.get(params.id, startDate, endDate);
-        
-        // El API retorna un objeto con fechas como keys: { "2025-01-01": [...slots] }
-        // Extraer los slots del primer día
-        const dateKey = Object.keys(data)[0];
-        const daySlots = dateKey ? data[dateKey] : [];
+        const rangeStart = new Date();
+        rangeStart.setHours(0, 0, 0, 0);
+        const rangeEnd = addDays(rangeStart, 7);
+        const data = await api.availability.get(
+          params.id,
+          rangeStart.toISOString().split('T')[0],
+          rangeEnd.toISOString().split('T')[0],
+        );
+
+        setAvailabilityMap(data);
+
+        const availableKeys = Object.entries(data)
+          .filter(([, daySlots]) =>
+            Array.isArray(daySlots) &&
+            daySlots.some((slot) => (slot?.available ?? 0) > 0),
+          )
+          .map(([key]) => key)
+          .sort();
+
+        setAvailableDateKeys(availableKeys);
+
+        const hasSelected = availableKeys.includes(selectedDateKey);
+        const activeKey = hasSelected ? selectedDateKey : availableKeys[0] || '';
+        setSelectedDateKey(activeKey);
+
+        const daySlots = activeKey ? data[activeKey] : [];
         setSlots(Array.isArray(daySlots) ? daySlots : []);
       } catch (e) {
         console.error('Error al cargar disponibilidad:', e);
+        setAvailabilityMap({});
+        setAvailableDateKeys([]);
         setSlots([]);
       } finally {
         setLoadingSlots(false);
       }
     }
     loadAvailability();
-  }, [offering, selectedDate, params.id]);
+  }, [offering, params.id]);
+
+  useEffect(() => {
+    if (!selectedDateKey) return;
+    const daySlots = availabilityMap[selectedDateKey] || [];
+    setSlots(Array.isArray(daySlots) ? daySlots : []);
+  }, [availabilityMap, selectedDateKey]);
 
   const handleReserve = async () => {
     if (!selectedSlot || !offering) return;
@@ -89,7 +127,7 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
         slotEnd: selectedSlot.end,
         quantity: totalSelected,
         ticketQuantities: {
-          standard: standardQty,
+          standard: effectiveStandardQty,
           variants: variantQty,
         },
       });
@@ -100,7 +138,7 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
         offering,
         quantity: totalSelected,
         ticketQuantities: {
-          standard: standardQty,
+          standard: effectiveStandardQty,
           variants: variantQty,
         },
         totalAmount,
@@ -187,15 +225,17 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4">Selecciona una fecha</h2>
               <DateSelector
-                selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
+                selectedDateKey={selectedDateKey}
+                onDateChange={setSelectedDateKey}
+                locale={locale}
+                availableDateKeys={availableDateKeys}
               />
             </div>
 
             {/* Franjas horarias */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4">
-                Horarios disponibles - {formatDate(selectedDate)}
+                Horarios disponibles - {formatDate(selectedDate, undefined, locale)}
               </h2>
               
               {loadingSlots ? (
@@ -222,7 +262,7 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
                           : 'border-gray-200 hover:border-blue-300'
                       }`}
                     >
-                      <div className="text-sm font-semibold">{formatTime(slot.start)}</div>
+                      <div className="text-sm font-semibold">{formatTime(slot.start, locale)}</div>
                       <div className="text-xs text-gray-600 mt-1">
                         {slot.available > 0 ? `${slot.available} disponibles` : 'Agotado'}
                       </div>
@@ -244,34 +284,38 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
                     Cantidad
                   </label>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="font-medium">Estándar</div>
-                        <div className="text-xs text-gray-600">{formatPrice(offering.basePrice, offering.currency)}</div>
+                    {!hasVariants && (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="font-medium">Estándar</div>
+                          <div className="text-xs text-gray-600">
+                            {formatPrice(offering.basePrice, offering.currency, locale)}
+                          </div>
+                        </div>
+                        <select
+                          value={standardQty}
+                          onChange={(e) => {
+                            const next = Number(e.target.value);
+                            const otherSum = totalSelected - standardQty;
+                            setStandardQty(clampChange(standardQty, next, otherSum));
+                          }}
+                          disabled={!selectedSlot}
+                          className="w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        >
+                          {(() => {
+                            const otherSum = totalSelected - standardQty;
+                            const maxForThis = selectedSlot ? Math.max(0, available - otherSum) : 0;
+                            const options: number[] = [];
+                            for (let i = 0; i <= Math.min(maxForThis, 20); i++) options.push(i);
+                            return options;
+                          })().map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                      <select
-                        value={standardQty}
-                        onChange={(e) => {
-                          const next = Number(e.target.value);
-                          const otherSum = totalSelected - standardQty;
-                          setStandardQty(clampChange(standardQty, next, otherSum));
-                        }}
-                        disabled={!selectedSlot}
-                        className="w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
-                      >
-                        {(() => {
-                          const otherSum = totalSelected - standardQty;
-                          const maxForThis = selectedSlot ? Math.max(0, available - otherSum) : 0;
-                          const options: number[] = [];
-                          for (let i = 0; i <= Math.min(maxForThis, 20); i++) options.push(i);
-                          return options;
-                        })().map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    )}
 
                     {variants.map((v) => {
                       const current = variantQty[v.name] || 0;
@@ -279,7 +323,9 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
                         <div key={v.name} className="flex items-center justify-between gap-3">
                           <div className="flex-1">
                             <div className="font-medium">{v.name}</div>
-                            <div className="text-xs text-gray-600">{formatPrice(v.price, offering.currency)}</div>
+                            <div className="text-xs text-gray-600">
+                              {formatPrice(v.price, offering.currency, locale)}
+                            </div>
                           </div>
                           <select
                             value={current}
@@ -313,8 +359,8 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
                 {selectedSlot && (
                   <div className="border-t pt-4">
                     <p className="text-sm text-gray-600 mb-1">Fecha y hora</p>
-                    <p className="font-medium">{formatDate(selectedDate)}</p>
-                    <p className="font-medium">{formatTime(selectedSlot.start)}</p>
+                    <p className="font-medium">{formatDate(selectedDate, undefined, locale)}</p>
+                    <p className="font-medium">{formatTime(selectedSlot.start, locale)}</p>
                   </div>
                 )}
 
@@ -325,7 +371,9 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
                   </div>
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-blue-600">{formatPrice(totalAmount, offering.currency)}</span>
+                    <span className="text-blue-600">
+                      {formatPrice(totalAmount, offering.currency, locale)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -350,26 +398,32 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
 }
 
 function DateSelector({
-  selectedDate,
+  selectedDateKey,
   onDateChange,
+  locale,
+  availableDateKeys,
 }: {
-  selectedDate: Date;
-  onDateChange: (date: Date) => void;
+  selectedDateKey: string;
+  onDateChange: (dateKey: string) => void;
+  locale: string;
+  availableDateKeys: string[];
 }) {
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    days.push(addDays(new Date(), i));
-  }
+  const days = availableDateKeys;
 
   return (
     <div className="flex space-x-2 overflow-x-auto pb-2">
-      {days.map((day, index) => {
-        const isSelected =
-          day.toDateString() === selectedDate.toDateString();
+      {days.length === 0 && (
+        <div className="text-sm text-gray-500">
+          No hay fechas disponibles en los próximos días.
+        </div>
+      )}
+      {days.map((dayKey, index) => {
+        const day = new Date(`${dayKey}T00:00:00`);
+        const isSelected = dayKey === selectedDateKey;
         return (
           <button
             key={index}
-            onClick={() => onDateChange(day)}
+            onClick={() => onDateChange(dayKey)}
             className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-lg border-2 transition-all ${
               isSelected
                 ? 'border-blue-600 bg-blue-50'
@@ -377,13 +431,13 @@ function DateSelector({
             }`}
           >
             <span className="text-xs text-gray-600 mb-1">
-              {new Intl.DateTimeFormat('es-ES', { weekday: 'short' }).format(day)}
+              {new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(day)}
             </span>
             <span className="text-xl font-bold">
               {day.getDate()}
             </span>
             <span className="text-xs text-gray-600">
-              {new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(day)}
+              {new Intl.DateTimeFormat(locale, { month: 'short' }).format(day)}
             </span>
           </button>
         );

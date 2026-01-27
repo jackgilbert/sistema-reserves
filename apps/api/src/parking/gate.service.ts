@@ -27,12 +27,12 @@ export class GateService implements GateProvider {
    */
   async openGate(gateId: string): Promise<void> {
     this.logger.log(`[STUB] Abriendo barrera: ${gateId}`);
-    
+
     // Simular delay de apertura física
     await new Promise((resolve) => setTimeout(resolve, 500));
-    
+
     this.logger.log(`[STUB] Barrera ${gateId} abierta`);
-    
+
     // En producción:
     // - Enviar señal GPIO a relé
     // - Llamar HTTP endpoint del controlador de barrera

@@ -24,6 +24,7 @@ export interface CreateOfferingDto {
     validTo?: Date;
   };
   priceVariants?: Array<{ name: string; price: number; description?: string }>;
+  images?: string[];
 }
 
 export interface UpdateOfferingDto {
@@ -34,6 +35,7 @@ export interface UpdateOfferingDto {
   capacity?: number;
   active?: boolean;
   priceVariants?: Array<{ name: string; price: number; description?: string }>;
+  images?: string[];
 }
 
 export interface CreateResourceDto {
@@ -63,6 +65,7 @@ export class OfferingsService {
       active,
       schedule,
       priceVariants,
+      images,
     } = dto;
 
     // Verificar que el slug no exista
@@ -92,6 +95,7 @@ export class OfferingsService {
         capacity: capacity || null,
         active: active !== undefined ? active : true,
         priceVariants: priceVariants || [],
+        images: images || [],
         schedules: schedule
           ? {
               create: {
@@ -239,12 +243,14 @@ export class OfferingsService {
     const data: Record<string, any> = {};
 
     if (dto.name !== undefined) data.name = dto.name;
-    if (dto.description !== undefined) data.description = dto.description || null;
+    if (dto.description !== undefined)
+      data.description = dto.description || null;
     if (dto.basePrice !== undefined) data.basePrice = dto.basePrice;
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.capacity !== undefined) data.capacity = dto.capacity ?? null;
     if (dto.active !== undefined) data.active = dto.active;
     if (dto.priceVariants !== undefined) data.priceVariants = dto.priceVariants;
+    if (dto.images !== undefined) data.images = dto.images;
 
     if (Object.keys(data).length === 0) {
       return this.findOne(id, tenant);

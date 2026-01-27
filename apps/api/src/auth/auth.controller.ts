@@ -71,4 +71,34 @@ export class AuthController {
   async getProfile(@Request() req: { user: { id: string; tenantId: string } }) {
     return this.authService.getProfile(req.user.id, req.user.tenantId);
   }
+
+  @Post('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar perfil del usuario autenticado' })
+  @ApiResponse({ status: 200, description: 'Perfil actualizado' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  async updateProfile(
+    @Body() dto: { name?: string; email?: string },
+    @Request() req: { user: { id: string; tenantId: string } },
+  ) {
+    return this.authService.updateProfile(req.user.id, req.user.tenantId, dto);
+  }
+
+  @Post('password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cambiar contraseña del usuario autenticado' })
+  @ApiResponse({ status: 200, description: 'Contraseña actualizada' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  async changePassword(
+    @Body() dto: { currentPassword: string; newPassword: string },
+    @Request() req: { user: { id: string; tenantId: string } },
+  ) {
+    return this.authService.changePassword(
+      req.user.id,
+      req.user.tenantId,
+      dto,
+    );
+  }
 }

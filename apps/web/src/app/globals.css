@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+  --brand-font-primary: 'Manrope', system-ui, -apple-system, sans-serif;
+  --brand-font-secondary: 'Merriweather', 'Times New Roman', serif;
+}
+
+body.public-view {
+  font-family: var(--brand-font-primary);
+}
+
+body.public-view h1,
+body.public-view h2,
+body.public-view h3,
+body.public-view h4,
+body.public-view h5,
+body.public-view h6 {
+  font-family: var(--brand-font-secondary);
+}

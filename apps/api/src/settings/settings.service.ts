@@ -99,15 +99,18 @@ export class SettingsService {
         logo: true,
         primaryColor: true,
         secondaryColor: true,
+        primaryFont: true,
+        secondaryFont: true,
+        siteTitle: true,
         timezone: true,
         locale: true,
         currency: true,
         stripeAccount: true,
         featureFlags: true,
+        notificationSettings: true,
         contactEmail: true,
         contactPhone: true,
         contactAddress: true,
-        siteTitle: true,
         siteDescription: true,
       },
     });
@@ -138,12 +141,18 @@ export class SettingsService {
         logo: instance.logo || undefined,
         primaryColor: instance.primaryColor,
         secondaryColor: instance.secondaryColor,
+        primaryFont: instance.primaryFont || DEFAULT_TENANT_SETTINGS.branding.primaryFont,
+        secondaryFont: instance.secondaryFont || DEFAULT_TENANT_SETTINGS.branding.secondaryFont,
+        siteTitle: instance.siteTitle || DEFAULT_TENANT_SETTINGS.branding.siteTitle,
         accentColor: undefined,
         customCSS: undefined,
       },
       policies: DEFAULT_TENANT_SETTINGS.policies,
       booking: DEFAULT_TENANT_SETTINGS.booking,
-      notifications: DEFAULT_TENANT_SETTINGS.notifications,
+      notifications: this.deepMerge(
+        DEFAULT_TENANT_SETTINGS.notifications,
+        (instance.notificationSettings as any) || {},
+      ),
       integrations: {
         stripeEnabled: !!instance.stripeAccount,
         stripePublicKey: undefined,
@@ -165,7 +174,7 @@ export class SettingsService {
     tenant: TenantContext,
   ): Promise<TenantSettings> {
     const updates: any = {};
-    const currentSettings = await this.getCurrentSettings(tenant);
+    const currentSettings = await this.getSettings(tenant);
     void currentSettings; // avoid eslint no-unused-vars (keeps fetch for potential side effects)
 
     // Mapear campos del DTO a la tabla Instance
@@ -185,6 +194,17 @@ export class SettingsService {
         updates.primaryColor = dto.branding.primaryColor;
       if (dto.branding.secondaryColor)
         updates.secondaryColor = dto.branding.secondaryColor;
+      if (dto.branding.primaryFont !== undefined)
+        updates.primaryFont = dto.branding.primaryFont;
+      if (dto.branding.secondaryFont !== undefined)
+        updates.secondaryFont = dto.branding.secondaryFont;
+      if (dto.branding.siteTitle !== undefined)
+        updates.siteTitle = dto.branding.siteTitle;
+    }
+
+    if (dto.notifications) {
+      const current = await this.getNotificationSettings(tenant);
+      updates.notificationSettings = this.deepMerge(current, dto.notifications);
     }
 
     // Update simple instance fields for other settings
@@ -275,6 +295,24 @@ export class SettingsService {
     defaults: FeatureFlags,
   ): FeatureFlags {
     return this.deepMerge(defaults, partial);
+  }
+
+  private async getNotificationSettings(
+    tenant: TenantContext,
+  ): Promise<Record<string, any>> {
+    const instance = await this.prisma.instance.findUnique({
+      where: { id: tenant.tenantId },
+      select: { notificationSettings: true },
+    });
+
+    if (!instance) {
+      throw new NotFoundException('Instancia no encontrada');
+    }
+
+    return this.deepMerge(
+      DEFAULT_TENANT_SETTINGS.notifications,
+      (instance.notificationSettings as any) || {},
+    );
   }
 
   /**

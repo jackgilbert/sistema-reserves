@@ -1,4 +1,11 @@
-import { IsString, IsInt, IsOptional, IsArray, ValidateNested, Min, IsBoolean } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { PriceVariant } from '@sistema-reservas/shared';
 

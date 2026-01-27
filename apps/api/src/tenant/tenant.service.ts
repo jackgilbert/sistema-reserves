@@ -18,6 +18,8 @@ export class TenantService {
       throw new NotFoundException(`Dominio inválido o no proporcionado`);
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     // Normalizar dominios de desarrollo a 'localhost'
     const normalizedDomain = this.normalizeDomain(domain);
 
@@ -37,8 +39,8 @@ export class TenantService {
       throw error;
     }
 
-    // Si no se encuentra el dominio, buscar el primer dominio activo como fallback (desarrollo)
-    if (!domainRecord) {
+    // Si no se encuentra el dominio, buscar el primer dominio activo como fallback (solo desarrollo)
+    if (!domainRecord && !isProduction) {
       domainRecord = await this.prisma.domain.findFirst({
         where: {
           instance: { active: true },
@@ -55,6 +57,10 @@ export class TenantService {
           include: { instance: true },
         });
       }
+    }
+
+    if (!domainRecord && isProduction) {
+      throw new NotFoundException(`Dominio ${domain} no encontrado`);
     }
 
     if (!domainRecord) {

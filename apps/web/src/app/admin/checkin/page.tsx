@@ -2,6 +2,34 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
+import { formatTime } from '@/lib/utils';
+
+type CheckInSlot = {
+  slotStart: string;
+  slotEnd: string;
+  count: number;
+};
+
+type CheckInBooking = {
+  id: string;
+  code: string;
+  customerName: string;
+  customerPhone?: string | null;
+  status: string;
+  usedAt?: string | null;
+  quantity: number;
+  offering: string;
+  slotStart: string;
+  slotEnd: string;
+};
+
+function getTodayInputValue(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function AdminCheckinPage() {
   const [code, setCode] = useState('');
@@ -14,7 +42,23 @@ export default function AdminCheckinPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scannerControlsRef = useRef<IScannerControls | null>(null);
 
+  const [listDate, setListDate] = useState(getTodayInputValue());
+  const [slots, setSlots] = useState<CheckInSlot[]>([]);
+  const [selectedSlotKey, setSelectedSlotKey] = useState('');
+  const [bookings, setBookings] = useState<CheckInBooking[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState('');
+  const [checkingCode, setCheckingCode] = useState<string | null>(null);
+
   const codeReader = useMemo(() => new BrowserQRCodeReader(), []);
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('accessToken');
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'x-tenant-domain': window.location.hostname,
+    } as Record<string, string>;
+  };
 
   const stopCamera = () => {
     scannerControlsRef.current?.stop();
@@ -29,6 +73,24 @@ export default function AdminCheckinPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const checkInByCode = async (normalizedCode: string) => {
+    const response = await fetch('/api/checkin', {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code: normalizedCode }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al procesar check-in');
+    }
+
+    return response.json();
+  };
+
   const performCheckIn = async (scannedCode: string) => {
     const normalizedCode = scannedCode.trim().toUpperCase();
     if (!normalizedCode) return;
@@ -38,23 +100,7 @@ export default function AdminCheckinPage() {
     setResult(null);
 
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/checkin', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'x-tenant-domain': window.location.hostname,
-        },
-        body: JSON.stringify({ code: normalizedCode }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al procesar check-in');
-      }
-
-      const data = await response.json();
+      const data = await checkInByCode(normalizedCode);
       setResult(data);
       setCode('');
     } catch (err: any) {
@@ -73,12 +119,10 @@ export default function AdminCheckinPage() {
     setResult(null);
 
     try {
-      const token = localStorage.getItem('accessToken');
       const response = await fetch(`/api/checkin/verify/${normalizedCode}`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'x-tenant-domain': window.location.hostname,
+            ...getAuthHeaders(),
           },
         }
       );
@@ -95,6 +139,97 @@ export default function AdminCheckinPage() {
       setLoading(false);
     }
   };
+
+  const getSlotKey = (slot: CheckInSlot) => `${slot.slotStart}|${slot.slotEnd}`;
+
+  const loadSlots = async (date: string) => {
+    setListLoading(true);
+    setListError('');
+    try {
+      const res = await fetch(`/api/checkin/slots?date=${encodeURIComponent(date)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        throw new Error('No se pudieron cargar los horarios');
+      }
+      const data = (await res.json()) as CheckInSlot[];
+      setSlots(data);
+
+      if (data.length === 0) {
+        setSelectedSlotKey('');
+        setBookings([]);
+        return;
+      }
+
+      const currentKey = selectedSlotKey;
+      const exists = data.some((slot) => getSlotKey(slot) === currentKey);
+      const nextKey = exists ? currentKey : getSlotKey(data[0]);
+      setSelectedSlotKey(nextKey);
+    } catch (err: any) {
+      setListError(err?.message || 'Error al cargar horarios');
+      setSlots([]);
+      setBookings([]);
+      setSelectedSlotKey('');
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  const loadBookings = async (date: string, slotKey: string) => {
+    if (!slotKey) return;
+    const [slotStart, slotEnd] = slotKey.split('|');
+    setListLoading(true);
+    setListError('');
+    try {
+      const res = await fetch(
+        `/api/checkin/list?date=${encodeURIComponent(date)}&slotStart=${encodeURIComponent(
+          slotStart,
+        )}&slotEnd=${encodeURIComponent(slotEnd)}`,
+        { headers: getAuthHeaders() },
+      );
+      if (!res.ok) {
+        throw new Error('No se pudieron cargar las reservas');
+      }
+      const data = (await res.json()) as CheckInBooking[];
+      setBookings(data);
+    } catch (err: any) {
+      setListError(err?.message || 'Error al cargar reservas');
+      setBookings([]);
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  const handleListCheckIn = async (codeValue: string) => {
+    if (!codeValue) return;
+    setCheckingCode(codeValue);
+    setListError('');
+    try {
+      await checkInByCode(codeValue.trim().toUpperCase());
+      setBookings((prev) =>
+        prev.map((booking) =>
+          booking.code === codeValue
+            ? { ...booking, status: 'USED', usedAt: new Date().toISOString() }
+            : booking,
+        ),
+      );
+    } catch (err: any) {
+      setListError(err?.message || 'Error al realizar check-in');
+    } finally {
+      setCheckingCode(null);
+    }
+  };
+
+  useEffect(() => {
+    void loadSlots(listDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listDate]);
+
+  useEffect(() => {
+    if (!selectedSlotKey) return;
+    void loadBookings(listDate, selectedSlotKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSlotKey]);
 
   const startCamera = async () => {
     setCameraError('');
@@ -153,6 +288,129 @@ export default function AdminCheckinPage() {
           <p className="mt-2 text-sm text-gray-600">
             Escanea o introduce el código de la reserva
           </p>
+        </div>
+
+        <div className="mt-8 bg-white shadow-sm rounded-lg p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-medium text-gray-900">
+                Check-in rápido por lista
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Selecciona fecha y horario para ver las reservas confirmadas.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => loadSlots(listDate)}
+              className="py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Actualizar
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Fecha
+              </label>
+              <input
+                type="date"
+                value={listDate}
+                onChange={(e) => setListDate(e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Horario
+              </label>
+              <select
+                value={selectedSlotKey}
+                onChange={(e) => setSelectedSlotKey(e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                disabled={slots.length === 0}
+              >
+                {slots.length === 0 && (
+                  <option value="">Sin reservas para la fecha</option>
+                )}
+                {slots.map((slot) => (
+                  <option key={getSlotKey(slot)} value={getSlotKey(slot)}>
+                    {formatTime(slot.slotStart)} - {formatTime(slot.slotEnd)} ({slot.count})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {listError && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {listError}
+            </div>
+          )}
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium text-gray-600">Nombre</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-600">Código</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-600">Teléfono</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-600">Cantidad</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-600">Estado</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-600">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {listLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
+                      Cargando reservas...
+                    </td>
+                  </tr>
+                ) : bookings.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
+                      No hay reservas confirmadas en este horario.
+                    </td>
+                  </tr>
+                ) : (
+                  bookings.map((booking) => (
+                    <tr key={booking.id}>
+                      <td className="px-4 py-2 text-gray-900">{booking.customerName}</td>
+                      <td className="px-4 py-2 font-mono text-gray-700">{booking.code}</td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {booking.customerPhone || '—'}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">{booking.quantity}</td>
+                      <td className="px-4 py-2">
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            booking.status === 'USED'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          {booking.status === 'USED' ? 'Check-in' : 'Pendiente'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          type="button"
+                          onClick={() => handleListCheckIn(booking.code)}
+                          disabled={booking.status === 'USED' || checkingCode === booking.code}
+                          className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {checkingCode === booking.code ? 'Procesando...' : 'Marcar check-in'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="mt-8 bg-white shadow-sm rounded-lg p-6">

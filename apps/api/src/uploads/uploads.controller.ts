@@ -4,28 +4,39 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+} from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { Tenant } from '../tenant/tenant.decorator';
 import { TenantContext } from '@sistema-reservas/shared';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Uploads')
 @Controller('uploads')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class UploadsController {
   // Maximum file size: 5MB
   private readonly MAX_FILE_SIZE = 5 * 1024 * 1024;
-  
+
   // Allowed image types
   private readonly ALLOWED_MIME_TYPES = [
     'image/jpeg',
     'image/jpg',
     'image/png',
     'image/webp',
-    'image/gif'
+    'image/gif',
   ];
 
   @Post('image')
@@ -51,13 +62,18 @@ export class UploadsController {
           'image/jpg',
           'image/png',
           'image/webp',
-          'image/gif'
+          'image/gif',
         ];
-        
+
         if (allowedMimes.includes(file.mimetype)) {
           cb(null, true);
         } else {
-          cb(new BadRequestException('Invalid file type. Only images are allowed.'), false);
+          cb(
+            new BadRequestException(
+              'Invalid file type. Only images are allowed.',
+            ),
+            false,
+          );
         }
       },
     }),
@@ -66,6 +82,7 @@ export class UploadsController {
     @UploadedFile() file: Express.Multer.File,
     @Tenant() tenant: TenantContext,
   ) {
+    void tenant; // avoid eslint no-unused-vars
     if (!file) {
       throw new BadRequestException('No file provided');
     }
@@ -104,9 +121,9 @@ export class UploadsController {
           'image/jpg',
           'image/png',
           'image/webp',
-          'image/gif'
+          'image/gif',
         ];
-        
+
         if (allowedMimes.includes(file.mimetype)) {
           cb(null, true);
         } else {
@@ -119,6 +136,7 @@ export class UploadsController {
     @UploadedFile() file: Express.Multer.File,
     @Tenant() tenant: TenantContext,
   ) {
+    void tenant; // avoid eslint no-unused-vars
     if (!file) {
       throw new BadRequestException('No file provided');
     }

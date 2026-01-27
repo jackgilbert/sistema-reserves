@@ -58,7 +58,9 @@ export class RedsysService {
   }
 
   private getConfig(): RedsysConfig {
-    const environment = (getEnv('REDSYS_ENV') || 'test') as 'test' | 'production';
+    const environment = (getEnv('REDSYS_ENV') || 'test') as
+      | 'test'
+      | 'production';
 
     const merchantCode = getEnv('REDSYS_MERCHANT_CODE');
     const terminal = getEnv('REDSYS_TERMINAL') || '1';
@@ -133,9 +135,7 @@ export class RedsysService {
     const config = this.getConfig();
 
     const publicBaseUrl =
-      getEnv('PUBLIC_BASE_URL') ||
-      input.origin ||
-      'http://localhost:3000';
+      getEnv('PUBLIC_BASE_URL') || input.origin || 'http://localhost:3000';
 
     const notifyUrl = `${publicBaseUrl.replace(/\/$/, '')}/api/payments/redsys/notify`;
     const okUrl = `${publicBaseUrl.replace(/\/$/, '')}/payments/redsys/ok`;
@@ -155,7 +155,8 @@ export class RedsysService {
       Ds_Merchant_MerchantData: input.merchantData,
     };
 
-    if (input.description) payload.Ds_Merchant_ProductDescription = input.description;
+    if (input.description)
+      payload.Ds_Merchant_ProductDescription = input.description;
     if (input.customerName) payload.Ds_Merchant_Titular = input.customerName;
 
     const merchantParameters = base64Encode(JSON.stringify(payload));

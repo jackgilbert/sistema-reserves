@@ -91,6 +91,21 @@ class BrandingSettingsDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  primaryFont?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  secondaryFont?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  siteTitle?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   accentColor?: string;
 
   @ApiProperty({ required: false })
@@ -193,6 +208,98 @@ class NotificationSettingsDto {
   @IsOptional()
   @IsString()
   fromName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SmtpSettingsDto)
+  smtp?: SmtpSettingsDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmailTemplatesDto)
+  templates?: EmailTemplatesDto;
+}
+
+class SmtpSettingsDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  host?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  port?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  user?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  pass?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  secure?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  cc?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  bcc?: string;
+}
+
+class EmailTemplateDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  subject?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  body?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  html?: string;
+}
+
+class EmailTemplatesDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmailTemplateDto)
+  bookingConfirmation?: EmailTemplateDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmailTemplateDto)
+  bookingReminder?: EmailTemplateDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmailTemplateDto)
+  bookingCancellation?: EmailTemplateDto;
 }
 
 class IntegrationsSettingsDto {
@@ -232,6 +339,74 @@ class SeoSettingsDto {
   @IsOptional()
   @IsString()
   ogImage?: string;
+}
+
+class TaxSettingsDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  businessLegalName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  taxId?: string;
+
+  @ApiProperty({ required: false, enum: ['VAT', 'NIF', 'CIF', 'EIN', 'OTHER'] })
+  @IsOptional()
+  @IsEnum(['VAT', 'NIF', 'CIF', 'EIN', 'OTHER'])
+  taxIdType?: 'VAT' | 'NIF' | 'CIF' | 'EIN' | 'OTHER';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  taxRate?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  includeTaxInPrice?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  invoicePrefix?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  invoiceNumberStart?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  invoiceFooter?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  bankAccountName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  swiftBic?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  iban?: string;
 }
 
 export class UpdateSettingsDto {
@@ -276,6 +451,12 @@ export class UpdateSettingsDto {
   @ValidateNested()
   @Type(() => IntegrationsSettingsDto)
   integrations?: IntegrationsSettingsDto;
+
+  @ApiProperty({ required: false, type: TaxSettingsDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TaxSettingsDto)
+  tax?: TaxSettingsDto;
 
   @ApiProperty({ required: false, type: SeoSettingsDto })
   @IsOptional()

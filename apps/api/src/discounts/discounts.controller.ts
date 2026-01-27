@@ -9,7 +9,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -154,7 +161,10 @@ export class DiscountsController {
       return { batchId: '', updated: 0 };
     }
 
-    const updated = await this.discountsService.deactivateBatch(tenant, batchId);
+    const updated = await this.discountsService.deactivateBatch(
+      tenant,
+      batchId,
+    );
     return { batchId, updated };
   }
 

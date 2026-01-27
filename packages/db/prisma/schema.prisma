@@ -25,12 +25,17 @@ model Instance {
   logo           String?
   primaryColor   String  @default("#3B82F6")
   secondaryColor String  @default("#10B981")
+  primaryFont    String? // e.g. "Manrope"
+  secondaryFont  String? // e.g. "Merriweather"
 
   // Configuración
   timezone      String  @default("Europe/Madrid")
   locale        String  @default("es-ES")
   currency      String  @default("EUR")
   stripeAccount String? // Stripe Connect account ID
+
+  // Notificaciones (SMTP, plantillas, etc.)
+  notificationSettings Json @default("{}")
 
   // Configuración web pública (frontend)
   siteTitle       String?
@@ -125,6 +130,7 @@ model Offering {
   basePrice     Int // en centavos
   currency      String @default("EUR")
   priceVariants Json   @default("[]") // [{name, price, description}]
+  images        Json   @default("[]") // ["https://..."]
 
   // Campos personalizados (esquema JSON)
   customFieldsSchema Json @default("[]") // [{name, type, required, options}]

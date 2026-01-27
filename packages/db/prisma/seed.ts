@@ -3,6 +3,19 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+function generateCode(existing: Set<string>) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  do {
+    code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+  } while (existing.has(code));
+  existing.add(code);
+  return code;
+}
+
 async function main() {
   console.log('🌱 Iniciando seed de base de datos...');
 
@@ -173,6 +186,93 @@ async function main() {
         },
       },
     },
+  });
+
+  // Crear reservas demo para check-in rápido (hoy)
+  console.log('🧪 Creando reservas demo...');
+  const now = new Date();
+  const slot1Start = new Date(now);
+  slot1Start.setHours(10, 0, 0, 0);
+  const slot1End = new Date(now);
+  slot1End.setHours(10, 30, 0, 0);
+  const slot2Start = new Date(now);
+  slot2Start.setHours(11, 0, 0, 0);
+  const slot2End = new Date(now);
+  slot2End.setHours(11, 30, 0, 0);
+
+  const usedAt = new Date();
+  const codes = new Set<string>();
+
+  const demoBookings = [
+    {
+      code: generateCode(codes),
+      customerName: 'Laura García',
+      customerEmail: 'laura@example.com',
+      customerPhone: '+34 600 123 456',
+      slotStart: slot1Start,
+      slotEnd: slot1End,
+      quantity: 2,
+      status: 'CONFIRMED',
+    },
+    {
+      code: generateCode(codes),
+      customerName: 'David López',
+      customerEmail: 'david@example.com',
+      customerPhone: '+34 611 222 333',
+      slotStart: slot1Start,
+      slotEnd: slot1End,
+      quantity: 3,
+      status: 'CONFIRMED',
+    },
+    {
+      code: generateCode(codes),
+      customerName: 'Ana Ruiz',
+      customerEmail: 'ana@example.com',
+      customerPhone: '+34 622 555 666',
+      slotStart: slot1Start,
+      slotEnd: slot1End,
+      quantity: 1,
+      status: 'USED',
+      usedAt,
+    },
+    {
+      code: generateCode(codes),
+      customerName: 'Carlos Pérez',
+      customerEmail: 'carlos@example.com',
+      customerPhone: '+34 633 777 888',
+      slotStart: slot2Start,
+      slotEnd: slot2End,
+      quantity: 2,
+      status: 'CONFIRMED',
+    },
+    {
+      code: generateCode(codes),
+      customerName: 'Marta Díaz',
+      customerEmail: 'marta@example.com',
+      customerPhone: '+34 644 111 222',
+      slotStart: slot2Start,
+      slotEnd: slot2End,
+      quantity: 4,
+      status: 'CONFIRMED',
+    },
+  ];
+
+  await prisma.booking.createMany({
+    data: demoBookings.map((booking) => ({
+      tenantId: museoInstance.id,
+      offeringId: museoOffering.id,
+      code: booking.code,
+      slotStart: booking.slotStart,
+      slotEnd: booking.slotEnd,
+      quantity: booking.quantity,
+      status: booking.status,
+      totalAmount: booking.quantity * 1200,
+      currency: 'EUR',
+      customerEmail: booking.customerEmail,
+      customerName: booking.customerName,
+      customerPhone: booking.customerPhone,
+      usedAt: booking.usedAt ?? null,
+    })),
   });
 
   // Crear instancia de parking

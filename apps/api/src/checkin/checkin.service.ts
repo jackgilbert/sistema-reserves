@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
-import { differenceInDays, startOfDay } from 'date-fns';
+import { differenceInDays, endOfDay, startOfDay } from 'date-fns';
 import { BookingRepository } from '../common/repositories/booking.repository';
 
 export interface CheckInDto {
@@ -187,6 +187,89 @@ export class CheckinService {
       offering: event.booking.offering.name,
       scannedAt: event.scannedAt.toISOString(),
       quantity: event.booking.quantity,
+    }));
+  }
+
+  /**
+   * Listar slots con reservas para una fecha
+   */
+  async getSlotsForDate(
+    tenant: TenantContext,
+    date: Date,
+    offeringId?: string,
+  ) {
+    const dayStart = startOfDay(date);
+    const dayEnd = endOfDay(date);
+
+    const slots = await this.prisma.booking.groupBy({
+      by: ['slotStart', 'slotEnd'],
+      where: {
+        tenantId: tenant.tenantId,
+        slotStart: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+        status: { in: ['CONFIRMED', 'USED'] },
+        ...(offeringId ? { offeringId } : {}),
+      },
+      _count: {
+        _all: true,
+      },
+      orderBy: {
+        slotStart: 'asc',
+      },
+    });
+
+    return slots.map((slot) => ({
+      slotStart: slot.slotStart.toISOString(),
+      slotEnd: slot.slotEnd.toISOString(),
+      count: slot._count._all,
+    }));
+  }
+
+  /**
+   * Listar reservas por fecha/slot para check-in rápido
+   */
+  async listBookingsForSlot(
+    tenant: TenantContext,
+    date: Date,
+    slotStart?: Date,
+    slotEnd?: Date,
+    offeringId?: string,
+  ) {
+    const dayStart = startOfDay(date);
+    const dayEnd = endOfDay(date);
+
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        tenantId: tenant.tenantId,
+        slotStart: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+        status: { in: ['CONFIRMED', 'USED'] },
+        ...(slotStart && slotEnd ? { slotStart, slotEnd } : {}),
+        ...(offeringId ? { offeringId } : {}),
+      },
+      include: {
+        offering: {
+          select: { name: true },
+        },
+      },
+      orderBy: [{ slotStart: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return bookings.map((booking) => ({
+      id: booking.id,
+      code: booking.code,
+      customerName: booking.customerName,
+      customerPhone: booking.customerPhone,
+      status: booking.status,
+      usedAt: booking.usedAt ? booking.usedAt.toISOString() : null,
+      quantity: booking.quantity,
+      offering: booking.offering.name,
+      slotStart: booking.slotStart.toISOString(),
+      slotEnd: booking.slotEnd.toISOString(),
     }));
   }
 }

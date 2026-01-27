@@ -69,7 +69,11 @@ export class PaymentsService {
     }
 
     const discount = dto.discountCode
-      ? await this.discountsService.validate(dto.discountCode, tenant, hold?.offeringId)
+      ? await this.discountsService.validate(
+          dto.discountCode,
+          tenant,
+          hold?.offeringId,
+        )
       : undefined;
 
     const paymentsEnabled = !!flags.payments?.enabled;
@@ -118,10 +122,12 @@ export class PaymentsService {
     }
 
     if (provider !== 'redsys') {
-      throw new BadRequestException(`Proveedor de pago no soportado: ${provider}`);
+      throw new BadRequestException(
+        `Proveedor de pago no soportado: ${provider}`,
+      );
     }
 
-    const booking = await this.bookingsService.createBookingFromHold(
+    const booking = await this.bookingsService.createPendingBookingFromHold(
       dto.holdId,
       dto.email,
       dto.name,
@@ -150,7 +156,9 @@ export class PaymentsService {
       },
     });
 
-    const order = (payment.metadata as any)?.redsys?.order as string | undefined;
+    const order = (payment.metadata as any)?.redsys?.order as
+      | string
+      | undefined;
     if (!order) {
       throw new Error('No se pudo generar el order de Redsys');
     }
@@ -195,7 +203,9 @@ export class PaymentsService {
 
   async handleRedsysNotification(body: Record<string, any>) {
     const signatureVersion = body?.Ds_SignatureVersion as string | undefined;
-    const merchantParameters = body?.Ds_MerchantParameters as string | undefined;
+    const merchantParameters = body?.Ds_MerchantParameters as
+      | string
+      | undefined;
     const signature = body?.Ds_Signature as string | undefined;
 
     if (!signatureVersion || !merchantParameters || !signature) {
@@ -214,7 +224,9 @@ export class PaymentsService {
     // se decodifica application/x-www-form-urlencoded (+ => espacio).
     const normalizedSignature = signature.replace(/\s/g, '+');
 
-    const decoded = this.redsysService.decodeMerchantParameters(normalizedMerchantParameters);
+    const decoded = this.redsysService.decodeMerchantParameters(
+      normalizedMerchantParameters,
+    );
 
     const order = decoded?.Ds_Order || decoded?.Ds_Merchant_Order;
     if (!order) {
@@ -244,9 +256,12 @@ export class PaymentsService {
 
     const responseCodeRaw = decoded?.Ds_Response;
     const responseCode =
-      typeof responseCodeRaw === 'string' ? parseInt(responseCodeRaw, 10) : responseCodeRaw;
+      typeof responseCodeRaw === 'string'
+        ? parseInt(responseCodeRaw, 10)
+        : responseCodeRaw;
 
-    const isSuccess = Number.isFinite(responseCode) && responseCode >= 0 && responseCode <= 99;
+    const isSuccess =
+      Number.isFinite(responseCode) && responseCode >= 0 && responseCode <= 99;
 
     const payment = await this.prisma.payment.findFirst({
       where: {
@@ -318,11 +333,21 @@ export class PaymentsService {
 
     // Single-winner: sólo el que logra completar el pago confirma el booking.
     if (updated.count === 0) {
-      this.logger.log(`Notify Redsys duplicado (COMPLETED por otra request) order=${order}`);
+      this.logger.log(
+        `Notify Redsys duplicado (COMPLETED por otra request) order=${order}`,
+      );
       return;
     }
 
-    // Booking is already confirmed when created
-    this.logger.log(`Payment confirmed for booking ${payment.bookingId}`);
+    try {
+      await this.bookingsService.confirmPendingBookingPayment(payment.bookingId);
+      this.logger.log(`Payment confirmed for booking ${payment.bookingId}`);
+    } catch (error) {
+      this.logger.error(
+        `Payment confirmed but booking update failed for ${payment.bookingId}:`,
+        error,
+      );
+      throw error;
+    }
   }
 }

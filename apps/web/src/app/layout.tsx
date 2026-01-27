@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { LocaleProvider } from '@/components/LocaleProvider'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { PublicStyling } from '@/components/PublicStyling'
 
 export const metadata: Metadata = {
   title: 'Sistema de Reservas',
@@ -13,7 +16,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <LocaleProvider>
+          <PublicStyling />
+          {children}
+          <LanguageSwitcher />
+        </LocaleProvider>
+      </body>
     </html>
   )
 }

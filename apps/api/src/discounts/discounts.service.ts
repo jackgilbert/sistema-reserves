@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
 import { customAlphabet } from 'nanoid';
@@ -58,7 +62,11 @@ export class DiscountsService {
       throw new BadRequestException('Código de descuento inactivo');
     }
 
-    if (offeringId && discount.offeringId && discount.offeringId !== offeringId) {
+    if (
+      offeringId &&
+      discount.offeringId &&
+      discount.offeringId !== offeringId
+    ) {
       throw new BadRequestException('Código no válido para esta oferta');
     }
 
@@ -154,7 +162,9 @@ export class DiscountsService {
     }
 
     if (desiredCodes.length < count) {
-      throw new BadRequestException('No se pudieron generar suficientes códigos');
+      throw new BadRequestException(
+        'No se pudieron generar suficientes códigos',
+      );
     }
 
     // Insert one by one to preserve returned codes reliably (small batches).
@@ -237,8 +247,7 @@ export class DiscountsService {
   async redeem(
     tenant: TenantContext,
     discountId: string,
-  ): Promise<{ id: string; percentOff: number }>
-  {
+  ): Promise<{ id: string; percentOff: number }> {
     const prisma = this.prisma as any;
     const updated = await prisma.discountCode.update({
       where: { id: discountId },
@@ -256,7 +265,10 @@ export class DiscountsService {
     return { id: updated.id, percentOff: updated.percentOff };
   }
 
-  async deactivateBatch(tenant: TenantContext, batchIdRaw: string): Promise<number> {
+  async deactivateBatch(
+    tenant: TenantContext,
+    batchIdRaw: string,
+  ): Promise<number> {
     const prisma = this.prisma as any;
     const batchId = (batchIdRaw || '').trim();
     if (!batchId) return 0;

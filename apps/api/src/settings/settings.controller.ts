@@ -6,9 +6,11 @@ import {
   Body,
   Headers,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
+import { EmailService } from '../notifications/notifications.service';
 import { TenantService } from '../tenant/tenant.service';
 import { UpdateFeatureFlagsDto } from './dto/update-feature-flags.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
@@ -18,6 +20,9 @@ import {
   ValidateSettingsDto,
 } from './dto/template-operations.dto';
 import { FeatureFlags, TenantSettings } from './settings.types';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Settings')
 @Controller('settings')
@@ -25,6 +30,7 @@ export class SettingsController {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly tenantService: TenantService,
+    private readonly emailService: EmailService,
   ) {}
 
   // ============================================================================
@@ -35,6 +41,8 @@ export class SettingsController {
   @ApiOperation({ summary: 'Obtener feature flags del tenant' })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Feature flags obtenidos' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async getFeatureFlags(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<FeatureFlags> {
@@ -49,6 +57,8 @@ export class SettingsController {
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Feature flags actualizados' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async updateFeatureFlags(
     @Body() dto: UpdateFeatureFlagsDto,
     @Headers('x-tenant-domain') domain: string,
@@ -65,6 +75,8 @@ export class SettingsController {
   })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Feature flags reseteados' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async resetFeatureFlags(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<FeatureFlags> {
@@ -84,6 +96,8 @@ export class SettingsController {
   })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Configuración obtenida' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async getSettings(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<TenantSettings> {
@@ -98,6 +112,8 @@ export class SettingsController {
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Configuración actualizada' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async updateSettings(
     @Body() dto: UpdateSettingsDto,
     @Headers('x-tenant-domain') domain: string,
@@ -106,6 +122,28 @@ export class SettingsController {
       domain || 'localhost',
     );
     return this.settingsService.updateSettings(dto, tenant);
+  }
+
+  @Post('notifications/test')
+  @ApiOperation({ summary: 'Enviar email de prueba SMTP' })
+  @ApiHeader({ name: 'x-tenant-domain', required: true })
+  @ApiResponse({ status: 200, description: 'Email enviado' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async sendTestEmail(
+    @Body()
+    dto: {
+      to: string;
+      subject?: string;
+      body?: string;
+      html?: string;
+    },
+    @Headers('x-tenant-domain') domain: string,
+  ) {
+    const tenant = await this.tenantService.resolveTenantByDomain(
+      domain || 'localhost',
+    );
+    return this.emailService.sendTestEmail(tenant.tenantId, dto);
   }
 
   @Get('public')
@@ -130,6 +168,8 @@ export class SettingsController {
   @Get('templates')
   @ApiOperation({ summary: 'Listar plantillas disponibles' })
   @ApiResponse({ status: 200, description: 'Lista de plantillas' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   getTemplates() {
     return this.settingsService.getAvailableTemplates();
   }
@@ -139,6 +179,8 @@ export class SettingsController {
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Plantilla aplicada' })
   @ApiResponse({ status: 400, description: 'Plantilla inválida' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async applyTemplate(
     @Body() dto: ApplyTemplateDto,
     @Headers('x-tenant-domain') domain: string,
@@ -157,6 +199,8 @@ export class SettingsController {
   @ApiOperation({ summary: 'Comparar configuración actual con una plantilla' })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Comparación realizada' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async compareWithTemplate(
     @Query('template') template: string,
     @Headers('x-tenant-domain') domain: string,
@@ -174,6 +218,8 @@ export class SettingsController {
   @Post('validate')
   @ApiOperation({ summary: 'Validar configuración antes de aplicarla' })
   @ApiResponse({ status: 200, description: 'Validación realizada' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async validateSettings(@Body() dto: ValidateSettingsDto) {
     return this.settingsService.validateConfiguration(
       dto.featureFlags as any,
@@ -189,6 +235,8 @@ export class SettingsController {
   @ApiOperation({ summary: 'Exportar configuración completa (admin)' })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Configuración exportada' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async exportSettings(
     @Headers('x-tenant-domain') domain: string,
     @Query('includeFeatureFlags') includeFeatureFlags?: string,
@@ -209,6 +257,8 @@ export class SettingsController {
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Configuración importada' })
   @ApiResponse({ status: 400, description: 'Configuración inválida' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async importSettings(
     @Body() dto: ImportSettingsDto,
     @Headers('x-tenant-domain') domain: string,

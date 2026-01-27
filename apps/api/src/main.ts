@@ -61,6 +61,9 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Servir archivos subidos
+  app.use('/uploads', express.static('uploads'));
+
   // Swagger/OpenAPI
   const config = new DocumentBuilder()
     .setTitle('Sistema de Reservas API')

@@ -12,6 +12,7 @@ import {
   BOOKING_CODE_LENGTH,
 } from '../common/constants';
 import { BookingRepository } from '../common/repositories/booking.repository';
+import { EmailService } from '../notifications/notifications.service';
 
 const nanoid = customAlphabet(BOOKING_CODE_ALPHABET, BOOKING_CODE_LENGTH);
 
@@ -29,6 +30,7 @@ export class BookingsService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly bookingRepository: BookingRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -96,21 +98,27 @@ export class BookingsService {
       | undefined;
 
     const priceVariantName: string | undefined =
-      typeof holdMeta.priceVariantName === 'string' ? holdMeta.priceVariantName : undefined;
+      typeof holdMeta.priceVariantName === 'string'
+        ? holdMeta.priceVariantName
+        : undefined;
 
     const variants = Array.isArray(hold.offering.priceVariants)
-      ? (hold.offering.priceVariants as Array<{ name: string; price: number }>).filter(
-          (v) => v && typeof v.name === 'string',
-        )
+      ? (
+          hold.offering.priceVariants as Array<{ name: string; price: number }>
+        ).filter((v) => v && typeof v.name === 'string')
       : [];
 
     const computeTotalFromSelection = () => {
       let total = 0;
       total += (ticketSelection?.standard || 0) * hold.offering.basePrice;
-      for (const [name, qty] of Object.entries(ticketSelection?.variants || {})) {
+      for (const [name, qty] of Object.entries(
+        ticketSelection?.variants || {},
+      )) {
         const v = variants.find((x) => x.name === name);
         if (!v) {
-          throw new BadRequestException(`Variante de precio no válida: ${name}`);
+          throw new BadRequestException(
+            `Variante de precio no válida: ${name}`,
+          );
         }
         total += v.price * qty;
       }
@@ -154,7 +162,10 @@ export class BookingsService {
 
       // 2. Crear booking items
       if (ticketSelection) {
-        const standardQty = Math.max(0, Math.floor(ticketSelection.standard || 0));
+        const standardQty = Math.max(
+          0,
+          Math.floor(ticketSelection.standard || 0),
+        );
         if (standardQty > 0) {
           await tx.bookingItem.create({
             data: {
@@ -167,12 +178,16 @@ export class BookingsService {
           });
         }
 
-        for (const [name, qtyRaw] of Object.entries(ticketSelection.variants || {})) {
+        for (const [name, qtyRaw] of Object.entries(
+          ticketSelection.variants || {},
+        )) {
           const qty = Math.max(0, Math.floor(qtyRaw || 0));
           if (qty < 1) continue;
           const v = variants.find((x) => x.name === name);
           if (!v) {
-            throw new BadRequestException(`Variante de precio no válida: ${name}`);
+            throw new BadRequestException(
+              `Variante de precio no válida: ${name}`,
+            );
           }
           await tx.bookingItem.create({
             data: {
@@ -233,6 +248,18 @@ export class BookingsService {
       return newBooking;
     });
 
+    try {
+      await this.emailService.sendBookingConfirmation(tenant.tenantId, {
+        code: booking.code,
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        slotStart: booking.slotStart,
+        offeringName: hold.offering.name,
+      });
+    } catch (error) {
+      this.logger.warn(`Email confirmación falló: ${(error as Error)?.message}`);
+    }
+
     return {
       id: booking.id,
       code: booking.code,
@@ -287,21 +314,27 @@ export class BookingsService {
       | undefined;
 
     const priceVariantName: string | undefined =
-      typeof holdMeta.priceVariantName === 'string' ? holdMeta.priceVariantName : undefined;
+      typeof holdMeta.priceVariantName === 'string'
+        ? holdMeta.priceVariantName
+        : undefined;
 
     const variants = Array.isArray(hold.offering.priceVariants)
-      ? (hold.offering.priceVariants as Array<{ name: string; price: number }>).filter(
-          (v) => v && typeof v.name === 'string',
-        )
+      ? (
+          hold.offering.priceVariants as Array<{ name: string; price: number }>
+        ).filter((v) => v && typeof v.name === 'string')
       : [];
 
     const computeTotalFromSelection = () => {
       let total = 0;
       total += (ticketSelection?.standard || 0) * hold.offering.basePrice;
-      for (const [name, qty] of Object.entries(ticketSelection?.variants || {})) {
+      for (const [name, qty] of Object.entries(
+        ticketSelection?.variants || {},
+      )) {
         const v = variants.find((x) => x.name === name);
         if (!v) {
-          throw new BadRequestException(`Variante de precio no válida: ${name}`);
+          throw new BadRequestException(
+            `Variante de precio no válida: ${name}`,
+          );
         }
         total += v.price * qty;
       }
@@ -346,7 +379,10 @@ export class BookingsService {
       });
 
       if (ticketSelection) {
-        const standardQty = Math.max(0, Math.floor(ticketSelection.standard || 0));
+        const standardQty = Math.max(
+          0,
+          Math.floor(ticketSelection.standard || 0),
+        );
         if (standardQty > 0) {
           await tx.bookingItem.create({
             data: {
@@ -359,12 +395,16 @@ export class BookingsService {
           });
         }
 
-        for (const [name, qtyRaw] of Object.entries(ticketSelection.variants || {})) {
+        for (const [name, qtyRaw] of Object.entries(
+          ticketSelection.variants || {},
+        )) {
           const qty = Math.max(0, Math.floor(qtyRaw || 0));
           if (qty < 1) continue;
           const v = variants.find((x) => x.name === name);
           if (!v) {
-            throw new BadRequestException(`Variante de precio no válida: ${name}`);
+            throw new BadRequestException(
+              `Variante de precio no válida: ${name}`,
+            );
           }
           await tx.bookingItem.create({
             data: {
@@ -403,7 +443,9 @@ export class BookingsService {
       totalAmount: booking.totalAmount,
       currency: booking.currency,
       customerName: booking.customerName,
-      offering: booking.offering ? { id: booking.offering.id, name: booking.offering.name } : undefined,
+      offering: booking.offering
+        ? { id: booking.offering.id, name: booking.offering.name }
+        : undefined,
     };
   }
 
@@ -431,7 +473,9 @@ export class BookingsService {
     if (booking.status !== 'HOLD') {
       // Idempotencia: si ya está confirmado, no hacer nada.
       if (booking.status === 'CONFIRMED') return { success: true };
-      throw new BadRequestException(`Estado de booking inválido: ${booking.status}`);
+      throw new BadRequestException(
+        `Estado de booking inválido: ${booking.status}`,
+      );
     }
 
     const holdId = (booking.metadata as any)?.holdId as string | undefined;
@@ -491,6 +535,24 @@ export class BookingsService {
       });
     });
 
+    try {
+      const confirmed = await this.prisma.booking.findUnique({
+        where: { id: booking.id },
+        include: { offering: { select: { name: true } } },
+      });
+      if (confirmed) {
+        await this.emailService.sendBookingConfirmation(confirmed.tenantId, {
+          code: confirmed.code,
+          customerName: confirmed.customerName,
+          customerEmail: confirmed.customerEmail,
+          slotStart: confirmed.slotStart,
+          offeringName: confirmed.offering?.name,
+        });
+      }
+    } catch (error) {
+      this.logger.warn(`Email confirmación pago falló: ${(error as Error)?.message}`);
+    }
+
     return { success: true };
   }
 
@@ -517,6 +579,7 @@ export class BookingsService {
       tenant,
       {
         items: true,
+        offering: true,
       },
     );
 
@@ -553,6 +616,18 @@ export class BookingsService {
         },
       });
     });
+
+    try {
+      await this.emailService.sendBookingCancellation(tenant.tenantId, {
+        code: booking.code,
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        slotStart: booking.slotStart,
+        offeringName: booking.offering?.name,
+      });
+    } catch (error) {
+      this.logger.warn(`Email cancelación falló: ${(error as Error)?.message}`);
+    }
 
     return {
       id: booking.id,

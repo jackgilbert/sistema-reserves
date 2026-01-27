@@ -69,7 +69,9 @@ export class ParkingService {
     const { bookingCode, plate, gateId } = dto;
     const now = new Date();
 
-    this.logger.log(`[ENTRY] tenantId=${tenant.tenantId}, code=${bookingCode}, plate=${plate}`);
+    this.logger.log(
+      `[ENTRY] tenantId=${tenant.tenantId}, code=${bookingCode}, plate=${plate}`,
+    );
 
     // 1) Buscar booking
     const booking = await this.prisma.booking.findFirst({
@@ -137,7 +139,10 @@ export class ParkingService {
         amountDue: 0,
         metadata: {
           gateIdEntry,
-          matchedBy: normalizePlate(expectedPlate) === normalizePlate(plate) ? 'exact' : 'tolerant',
+          matchedBy:
+            normalizePlate(expectedPlate) === normalizePlate(plate)
+              ? 'exact'
+              : 'tolerant',
         },
       },
     });
@@ -411,11 +416,7 @@ export class ParkingService {
   /**
    * POST /parking/admin/open-gate (override manual)
    */
-  async manualOpenGate(
-    gateId: string,
-    reason: string,
-    tenant: TenantContext,
-  ) {
+  async manualOpenGate(gateId: string, reason: string, tenant: TenantContext) {
     this.logger.warn(
       `[MANUAL] Abriendo barrera ${gateId} por motivo: ${reason}`,
     );

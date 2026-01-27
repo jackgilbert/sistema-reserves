@@ -7,11 +7,15 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaClient } from '@sistema-reservas/db';
 import { Tenant } from '../tenant/tenant.decorator';
 import { TenantContext } from '@sistema-reservas/shared';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 interface CreateScheduleDto {
   offeringId: string;
@@ -24,11 +28,12 @@ interface CreateScheduleDto {
   minAdvanceMinutes?: number;
   maxAdvanceDays?: number;
   cutoffMinutes?: number;
-  metadata?: Record<string, any>;
 }
 
 @ApiTags('Offerings Schedules')
 @Controller('offerings/:offeringId/schedules')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class SchedulesController {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -91,16 +96,6 @@ export class SchedulesController {
         capacityOverrides: {},
       },
     });
-
-    // Update metadata if provided
-    if (dto.metadata && Object.keys(dto.metadata).length > 0) {
-      return await this.prisma.schedule.update({
-        where: { id: schedule.id },
-        data: {
-          metadata: dto.metadata,
-        },
-      });
-    }
 
     return schedule;
   }

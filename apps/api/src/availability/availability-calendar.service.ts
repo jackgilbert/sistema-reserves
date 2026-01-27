@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
-import { TenantContext, AvailabilityOverrideType } from '@sistema-reservas/shared';
+import {
+  TenantContext,
+  AvailabilityOverrideType,
+} from '@sistema-reservas/shared';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
 
 export interface CreateAvailabilityOverrideDto {
@@ -35,8 +42,22 @@ export class AvailabilityCalendarService {
   /**
    * Create an availability override
    */
-  async create(dto: CreateAvailabilityOverrideDto, tenant: TenantContext): Promise<unknown> {
-    const { offeringId, dateFrom, dateTo, type, isClosed, capacityOverride, priceOverride, priceMultiplier, reason, metadata } = dto;
+  async create(
+    dto: CreateAvailabilityOverrideDto,
+    tenant: TenantContext,
+  ): Promise<unknown> {
+    const {
+      offeringId,
+      dateFrom,
+      dateTo,
+      type,
+      isClosed,
+      capacityOverride,
+      priceOverride,
+      priceMultiplier,
+      reason,
+      metadata,
+    } = dto;
 
     // Verify offering exists
     const offering = await this.prisma.offering.findFirst({
@@ -56,7 +77,9 @@ export class AvailabilityCalendarService {
     const to = endOfDay(parseISO(dateTo));
 
     if (from > to) {
-      throw new BadRequestException('dateFrom must be before or equal to dateTo');
+      throw new BadRequestException(
+        'dateFrom must be before or equal to dateTo',
+      );
     }
 
     // Create override
@@ -167,7 +190,11 @@ export class AvailabilityCalendarService {
   /**
    * Update an availability override
    */
-  async update(id: string, dto: UpdateAvailabilityOverrideDto, tenant: TenantContext): Promise<unknown> {
+  async update(
+    id: string,
+    dto: UpdateAvailabilityOverrideDto,
+    tenant: TenantContext,
+  ): Promise<unknown> {
     // Verify exists
     await this.findOne(id, tenant);
 

@@ -1,16 +1,5 @@
-import {
-  Body,
-  Controller,
-  Headers,
-  Post,
-  Req,
-} from '@nestjs/common';
-import {
-  ApiHeader,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Headers, Post, Req } from '@nestjs/common';
+import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { Request } from 'express';
 import { TenantService } from '../tenant/tenant.service';

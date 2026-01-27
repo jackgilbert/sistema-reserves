@@ -68,6 +68,9 @@ export interface TenantSettings {
     logo?: string;
     primaryColor: string;
     secondaryColor: string;
+    primaryFont?: string;
+    secondaryFont?: string;
+    siteTitle?: string;
     accentColor?: string;
     customCSS?: string;
   };
@@ -99,6 +102,33 @@ export interface TenantSettings {
     sendCancellationNotification: boolean;
     fromEmail?: string;
     fromName?: string;
+    smtp?: {
+      enabled?: boolean;
+      host?: string;
+      port?: number;
+      user?: string;
+      pass?: string;
+      secure?: boolean;
+      cc?: string;
+      bcc?: string;
+    };
+    templates?: {
+      bookingConfirmation?: {
+        subject?: string;
+        body?: string;
+        html?: string;
+      };
+      bookingReminder?: {
+        subject?: string;
+        body?: string;
+        html?: string;
+      };
+      bookingCancellation?: {
+        subject?: string;
+        body?: string;
+        html?: string;
+      };
+    };
   };
 
   // Integrations
@@ -194,6 +224,9 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   branding: {
     primaryColor: '#3B82F6',
     secondaryColor: '#10B981',
+    primaryFont: 'Manrope',
+    secondaryFont: 'Merriweather',
+    siteTitle: 'Sistema de Reservas',
   },
   policies: {
     cancellationPolicy: 'Cancelación gratuita hasta 24 horas antes.',
@@ -213,6 +246,39 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
     sendBookingReminder: false,
     reminderHoursBefore: 24,
     sendCancellationNotification: true,
+    smtp: {
+      enabled: false,
+      host: '',
+      port: 587,
+      user: '',
+      pass: '',
+      secure: false,
+      cc: '',
+      bcc: '',
+    },
+    templates: {
+      bookingConfirmation: {
+        subject: 'Confirmación de reserva {{code}}',
+        body:
+          'Hola {{name}},\\n\\nTu reserva {{code}} ha sido confirmada para {{date}} a las {{time}}.\\n\\nGracias.',
+        html:
+          '<p>Hola {{name}},</p><p>Tu reserva <strong>{{code}}</strong> ha sido confirmada para {{date}} a las {{time}}.</p><p>Gracias.</p>',
+      },
+      bookingReminder: {
+        subject: 'Recordatorio de reserva {{code}}',
+        body:
+          'Hola {{name}},\\n\\nTe recordamos tu reserva {{code}} el {{date}} a las {{time}}.\\n\\nGracias.',
+        html:
+          '<p>Hola {{name}},</p><p>Te recordamos tu reserva <strong>{{code}}</strong> el {{date}} a las {{time}}.</p><p>Gracias.</p>',
+      },
+      bookingCancellation: {
+        subject: 'Reserva cancelada {{code}}',
+        body:
+          'Hola {{name}},\\n\\nTu reserva {{code}} ha sido cancelada.\\n\\nGracias.',
+        html:
+          '<p>Hola {{name}},</p><p>Tu reserva <strong>{{code}}</strong> ha sido cancelada.</p><p>Gracias.</p>',
+      },
+    },
   },
   integrations: {
     stripeEnabled: false,

@@ -1,4 +1,14 @@
-import { IsString, IsBoolean, IsOptional, IsInt, IsISO8601, IsEnum, IsObject, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsInt,
+  IsISO8601,
+  IsEnum,
+  IsObject,
+  Min,
+  Max,
+} from 'class-validator';
 import { AvailabilityOverrideType } from '@sistema-reservas/shared';
 
 export class CreateAvailabilityOverrideDto {

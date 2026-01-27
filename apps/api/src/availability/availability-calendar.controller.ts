@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
@@ -16,16 +17,21 @@ import {
 } from './availability-calendar.service';
 import { Tenant } from '../tenant/tenant.decorator';
 import { TenantContext } from '@sistema-reservas/shared';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Availability Calendar')
 @Controller('availability-calendar')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class AvailabilityCalendarController {
-  constructor(
-    private readonly calendarService: AvailabilityCalendarService,
-  ) {}
+  constructor(private readonly calendarService: AvailabilityCalendarService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create an availability override (blackout, capacity, pricing)' })
+  @ApiOperation({
+    summary: 'Create an availability override (blackout, capacity, pricing)',
+  })
   @ApiResponse({ status: 201, description: 'Override created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid data' })
   async create(
@@ -54,7 +60,12 @@ export class AvailabilityCalendarController {
     @Query('endDate') endDate: string,
     @Tenant() tenant: TenantContext,
   ): Promise<unknown[]> {
-    return this.calendarService.findByDateRange(offeringId, startDate, endDate, tenant);
+    return this.calendarService.findByDateRange(
+      offeringId,
+      startDate,
+      endDate,
+      tenant,
+    );
   }
 
   @Get(':id')

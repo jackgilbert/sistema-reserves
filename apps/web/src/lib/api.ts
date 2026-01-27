@@ -124,7 +124,7 @@ export const api = {
       }),
     cancel: (code: string) =>
       fetchApi<Booking>(`/bookings/public/${code}/cancel`, {
-        method: 'POST',
+        method: 'PATCH',
       }),
   },
 

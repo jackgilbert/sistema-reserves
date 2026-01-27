@@ -14,6 +14,7 @@ import { ParkingModule } from './parking/parking.module';
 import { PaymentsModule } from './payments/payments.module';
 import { SettingsModule } from './settings/settings.module';
 import { TasksModule } from './tasks/tasks.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
 import { TenantModule } from './tenant/tenant.module';
 
@@ -40,6 +41,7 @@ import { TenantModule } from './tenant/tenant.module';
     CheckInModule,
     TasksModule,
     SettingsModule,
+    UploadsModule,
     HealthModule,
   ],
   providers: [

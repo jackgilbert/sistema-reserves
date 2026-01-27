@@ -20,7 +20,7 @@ interface Offering {
   currency: string;
   capacity: number | null;
   active: boolean;
-  imageUrl?: string | null;
+  images?: string[];
   priceVariants?: PriceVariant[];
   // Note: Prisma schema doesn't include translations on Offering
 }
@@ -126,7 +126,8 @@ export default function AdminOfferingEditPage() {
         setBasePriceEuros(formatCentsToEuros(data?.basePrice ?? 0));
         setCapacity(data?.capacity === null || data?.capacity === undefined ? '' : String(data.capacity));
         setActive(!!data?.active);
-        setImageUrl(data?.imageUrl ?? '');
+        const images = Array.isArray(data?.images) ? data.images : [];
+        setImageUrl(images[0] || '');
         setPriceVariants(normalizePriceVariants(data?.priceVariants));
 
         // Keep UI state for now, but don't assume backend supports it
@@ -230,7 +231,7 @@ export default function AdminOfferingEditPage() {
           basePrice,
           capacity: capacityValue,
           active,
-          imageUrl,
+          images: imageUrl ? [imageUrl] : [],
           // Only send what DB/API supports
           priceVariants: sanitizePriceVariants(priceVariants),
           // Do NOT send translations unless backend explicitly supports it

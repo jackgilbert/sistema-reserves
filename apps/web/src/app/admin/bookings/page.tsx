@@ -6,8 +6,8 @@ interface Booking {
   id: string;
   code: string;
   status: string;
-  name: string;
-  email: string;
+  customerName: string;
+  customerEmail: string;
   totalAmount: number;
   createdAt: string;
   slotVariantKey?: string;
@@ -59,6 +59,7 @@ export default function AdminBookingsPage() {
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
       PENDING_PAYMENT: 'bg-yellow-100 text-yellow-800',
+      HOLD: 'bg-yellow-100 text-yellow-800',
       CONFIRMED: 'bg-green-100 text-green-800',
       USED: 'bg-blue-100 text-blue-800',
       CANCELLED: 'bg-red-100 text-red-800',
@@ -66,6 +67,7 @@ export default function AdminBookingsPage() {
 
     const labels: Record<string, string> = {
       PENDING_PAYMENT: 'Pendiente Pago',
+      HOLD: 'Pendiente Pago',
       CONFIRMED: 'Confirmada',
       USED: 'Utilizada',
       CANCELLED: 'Cancelada',
@@ -176,8 +178,8 @@ export default function AdminBookingsPage() {
                           {booking.code}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <div>{booking.name}</div>
-                          <div className="text-xs text-gray-400">{booking.email}</div>
+                          <div>{booking.customerName}</div>
+                          <div className="text-xs text-gray-400">{booking.customerEmail}</div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {booking.offering?.name || booking.items[0]?.offering?.name || '-'}

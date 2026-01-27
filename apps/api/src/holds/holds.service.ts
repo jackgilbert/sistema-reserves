@@ -46,9 +46,9 @@ export class HoldsService {
 
       // Calcular precio
       const variants = Array.isArray(offering.priceVariants)
-        ? (offering.priceVariants as Array<{ name: string; price: number }>).filter(
-            (v) => v && typeof v.name === 'string',
-          )
+        ? (
+            offering.priceVariants as Array<{ name: string; price: number }>
+          ).filter((v) => v && typeof v.name === 'string')
         : [];
 
       const normalizeQty = (n: unknown): number => {
@@ -56,7 +56,7 @@ export class HoldsService {
         return Math.max(0, Math.floor(n));
       };
 
-      let resolvedTotalQty = Math.max(0, Math.floor(quantity));
+      const resolvedTotalQty = Math.max(0, Math.floor(quantity));
       let ticketSelection:
         | { standard: number; variants: Record<string, number> }
         | undefined;
@@ -74,7 +74,10 @@ export class HoldsService {
           }
         }
 
-        const sumVariants = Object.values(variantsMap).reduce((a, b) => a + b, 0);
+        const sumVariants = Object.values(variantsMap).reduce(
+          (a, b) => a + b,
+          0,
+        );
         const computedTotal = standard + sumVariants;
 
         if (computedTotal < 1) {
@@ -83,7 +86,9 @@ export class HoldsService {
 
         if (resolvedTotalQty !== computedTotal) {
           // Permitimos que el frontend envíe quantity como total; si no coincide, rechazamos.
-          throw new BadRequestException('Cantidad total no coincide con el desglose de entradas');
+          throw new BadRequestException(
+            'Cantidad total no coincide con el desglose de entradas',
+          );
         }
 
         ticketSelection = { standard, variants: variantsMap };
@@ -99,7 +104,9 @@ export class HoldsService {
         for (const [name, qty] of Object.entries(ticketSelection.variants)) {
           const v = variants.find((x) => x.name === name);
           if (!v) {
-            throw new BadRequestException(`Variante de precio no válida: ${name}`);
+            throw new BadRequestException(
+              `Variante de precio no válida: ${name}`,
+            );
           }
           totalPrice += v.price * qty;
         }
@@ -275,7 +282,8 @@ export class HoldsService {
     const holdIds: string[] = [];
 
     for (const hold of expiredHolds) {
-      const bucketKey = `${hold.tenantId}:${hold.offeringId}:${hold.slotStart.toISOString()}`;
+      const slotStartKey = hold.slotStart.getTime();
+      const bucketKey = `${hold.tenantId}__${hold.offeringId}__${slotStartKey}`;
       bucketUpdates.set(
         bucketKey,
         (bucketUpdates.get(bucketKey) || 0) + hold.quantity,
@@ -301,8 +309,8 @@ export class HoldsService {
 
           // Actualizar buckets de inventario
           for (const [bucketKey, totalQuantity] of bucketUpdates.entries()) {
-            const [tenantId, offeringId, slotStartStr] = bucketKey.split(':');
-            const slotStart = new Date(slotStartStr);
+            const [tenantId, offeringId, slotStartStr] = bucketKey.split('__');
+            const slotStart = new Date(Number(slotStartStr));
 
             await tx.inventoryBucket.update({
               where: {

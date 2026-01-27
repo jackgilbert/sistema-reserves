@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, Booking } from '@/lib/api';
 import { formatPrice, formatDate, formatTime } from '@/lib/utils';
+import { useLocale } from '@/components/LocaleProvider';
 
 export default function ManageBookingPage({ params }: { params: { code: string } }) {
   const router = useRouter();
+  const { locale } = useLocale();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -147,8 +149,8 @@ export default function ManageBookingPage({ params }: { params: { code: string }
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Fecha y hora</p>
-                  <p className="font-medium">{formatDate(booking.slotStart)}</p>
-                  <p className="font-medium">{formatTime(booking.slotStart)}</p>
+                  <p className="font-medium">{formatDate(booking.slotStart, undefined, locale)}</p>
+                  <p className="font-medium">{formatTime(booking.slotStart, locale)}</p>
                 </div>
 
                 {slotVariantLabel && (
@@ -166,7 +168,7 @@ export default function ManageBookingPage({ params }: { params: { code: string }
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total</p>
                   <p className="text-xl font-bold text-blue-600">
-                    {formatPrice(booking.totalAmount, booking.currency)}
+                    {formatPrice(booking.totalAmount, booking.currency, locale)}
                   </p>
                 </div>
 

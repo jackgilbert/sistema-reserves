@@ -1,17 +1,54 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, Offering } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
+import { useLocale } from '@/components/LocaleProvider';
 
-export default async function HomePage() {
-  let offerings: Offering[] = [];
-  let error: string | null = null;
+type PublicSettings = {
+  branding?: {
+    siteTitle?: string;
+  };
+  general?: {
+    description?: string;
+  };
+};
 
-  try {
-    offerings = await api.offerings.list();
-  } catch (e) {
-    console.error('[HomePage] Error fetching offerings:', e);
-    error = e instanceof Error ? e.message : 'Error al cargar las ofertas';
-  }
+export default function HomePage() {
+  const { locale } = useLocale();
+  const [offerings, setOfferings] = useState<Offering[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState('Sistema de Reservas');
+  const [subtitle, setSubtitle] = useState('Selecciona una experiencia para reservar');
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [data, settings] = await Promise.all([
+          api.offerings.list(),
+          api.settings.getPublic(),
+        ]);
+        setOfferings(Array.isArray(data) ? data : []);
+        const publicSettings = settings as PublicSettings;
+        const nextTitle =
+          publicSettings?.branding?.siteTitle || 'Sistema de Reservas';
+        const nextSubtitle =
+          publicSettings?.general?.description ||
+          publicSettings?.branding?.siteTitle ||
+          'Selecciona una experiencia para reservar';
+        setTitle(nextTitle);
+        setSubtitle(nextSubtitle);
+      } catch (e) {
+        console.error('[HomePage] Error fetching offerings:', e);
+        setError(e instanceof Error ? e.message : 'Error al cargar las ofertas');
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -21,10 +58,10 @@ export default async function HomePage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Sistema de Reservas
+                {title}
               </h1>
               <p className="mt-1 text-sm text-gray-600">
-                Selecciona una experiencia para reservar
+                {subtitle}
               </p>
             </div>
             <Link
@@ -39,7 +76,11 @@ export default async function HomePage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {error ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600">Cargando ofertas...</p>
+          </div>
+        ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-red-800">{error}</p>
           </div>
@@ -50,7 +91,7 @@ export default async function HomePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {offerings.map((offering) => (
-              <OfferingCard key={offering.id} offering={offering} />
+              <OfferingCard key={offering.id} offering={offering} locale={locale} />
             ))}
           </div>
         )}
@@ -76,7 +117,7 @@ export default async function HomePage() {
   );
 }
 
-function OfferingCard({ offering }: { offering: Offering }) {
+function OfferingCard({ offering, locale }: { offering: Offering; locale: string }) {
   return (
     <Link
       href={`/o/${offering.id}`}
@@ -114,7 +155,7 @@ function OfferingCard({ offering }: { offering: Offering }) {
           <div>
             <p className="text-sm text-gray-500">Desde</p>
             <p className="text-2xl font-bold text-gray-900">
-              {formatPrice(offering.basePrice, offering.currency)}
+              {formatPrice(offering.basePrice, offering.currency, locale)}
             </p>
           </div>
           
@@ -140,4 +181,3 @@ function getOfferingTypeLabel(type: string): string {
   };
   return labels[type] || type;
 }
-

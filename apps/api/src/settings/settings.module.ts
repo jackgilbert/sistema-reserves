@@ -5,9 +5,10 @@ import { SettingsService } from './settings.service';
 import { SettingsValidatorService } from './settings-validator.service';
 import { TenantModule } from '../tenant/tenant.module';
 import { FeatureFlagGuard } from './guards/feature-flag.guard';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TenantModule],
+  imports: [TenantModule, NotificationsModule],
   controllers: [SettingsController],
   providers: [
     PrismaClient,

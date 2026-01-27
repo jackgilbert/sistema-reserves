@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPrice, formatDate, formatTime } from '@/lib/utils';
+import { useLocale } from '@/components/LocaleProvider';
 import { api } from '@/lib/api';
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { locale } = useLocale();
   const [holdData, setHoldData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -200,7 +202,13 @@ export default function CheckoutPage() {
                       {(ticketQuantities.standard || 0) > 0 && (
                         <div className="flex justify-between">
                           <span>Estándar x{ticketQuantities.standard}</span>
-                          <span>{formatPrice(offering.basePrice * ticketQuantities.standard, offering.currency)}</span>
+                          <span>
+                            {formatPrice(
+                              offering.basePrice * ticketQuantities.standard,
+                              offering.currency,
+                              locale,
+                            )}
+                          </span>
                         </div>
                       )}
                       {Object.entries((ticketQuantities.variants || {}) as Record<string, number>)
@@ -211,7 +219,7 @@ export default function CheckoutPage() {
                           return (
                             <div key={name} className="flex justify-between">
                               <span>{name} x{q}</span>
-                              <span>{formatPrice(unit * q, offering.currency)}</span>
+                              <span>{formatPrice(unit * q, offering.currency, locale)}</span>
                             </div>
                           );
                         })}
@@ -221,8 +229,8 @@ export default function CheckoutPage() {
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Fecha y hora</p>
-                  <p className="font-medium">{formatDate(hold.slotStart)}</p>
-                  <p className="font-medium">{formatTime(hold.slotStart)}</p>
+                  <p className="font-medium">{formatDate(hold.slotStart, undefined, locale)}</p>
+                  <p className="font-medium">{formatTime(hold.slotStart, locale)}</p>
                 </div>
 
                 <div>
@@ -234,13 +242,13 @@ export default function CheckoutPage() {
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium">
-                      {formatPrice(totalAmount, offering.currency)}
+                      {formatPrice(totalAmount, offering.currency, locale)}
                     </span>
                   </div>
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
                     <span className="text-blue-600">
-                      {formatPrice(totalAmount, offering.currency)}
+                      {formatPrice(totalAmount, offering.currency, locale)}
                     </span>
                   </div>
                 </div>

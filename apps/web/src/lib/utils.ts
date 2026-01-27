@@ -3,9 +3,13 @@
 /**
  * Formatea un precio en centavos a string con símbolo de moneda
  */
-export function formatPrice(cents: number, currency: string = 'EUR'): string {
+export function formatPrice(
+  cents: number,
+  currency: string = 'EUR',
+  locale?: string,
+): string {
   const amount = cents / 100;
-  return new Intl.NumberFormat('es-ES', {
+  return new Intl.NumberFormat(resolveLocale(locale), {
     style: 'currency',
     currency,
   }).format(amount);
@@ -14,9 +18,13 @@ export function formatPrice(cents: number, currency: string = 'EUR'): string {
 /**
  * Formatea una fecha en formato legible
  */
-export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
+export function formatDate(
+  date: string | Date,
+  options?: Intl.DateTimeFormatOptions,
+  locale?: string,
+): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('es-ES', {
+  return new Intl.DateTimeFormat(resolveLocale(locale), {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
@@ -27,9 +35,9 @@ export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOpt
 /**
  * Formatea una hora
  */
-export function formatTime(date: string | Date): string {
+export function formatTime(date: string | Date, locale?: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('es-ES', {
+  return new Intl.DateTimeFormat(resolveLocale(locale), {
     hour: '2-digit',
     minute: '2-digit',
   }).format(d);
@@ -45,9 +53,34 @@ export function formatTimeRange(start: string | Date, end: string | Date): strin
 /**
  * Obtiene el nombre del día de la semana
  */
-export function getDayName(date: string | Date): string {
+export function getDayName(date: string | Date, locale?: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(d);
+  return new Intl.DateTimeFormat(resolveLocale(locale), { weekday: 'long' }).format(d);
+}
+
+function resolveLocale(localeOverride?: string): string {
+  if (localeOverride) return mapToIntlLocale(localeOverride);
+  if (typeof window === 'undefined') return 'es-ES';
+
+  const stored = window.localStorage.getItem('publicLocale');
+  if (stored) {
+    return mapToIntlLocale(stored);
+  }
+
+  const htmlLang = document.documentElement.lang;
+  if (htmlLang) return mapToIntlLocale(htmlLang);
+
+  return mapToIntlLocale(navigator.language || 'es-ES');
+}
+
+function mapToIntlLocale(value: string): string {
+  const lower = value.toLowerCase();
+  if (lower.startsWith('es')) return 'es-ES';
+  if (lower.startsWith('en')) return 'en-US';
+  if (lower.startsWith('ca')) return 'ca-ES';
+  if (lower.startsWith('fr')) return 'fr-FR';
+  if (lower.startsWith('de')) return 'de-DE';
+  return value;
 }
 
 /**

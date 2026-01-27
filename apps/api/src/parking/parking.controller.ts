@@ -19,12 +19,12 @@ import {
 
 /**
  * Controlador para el sistema de parking por minutos
- * 
+ *
  * Flujo normal:
  * 1. POST /parking/entry - Validar y crear sesión, abrir barrera entrada
  * 2. POST /parking/exit/quote - Calcular minutos y precio
  * 3. POST /parking/exit/pay - Procesar pago y abrir barrera salida
- * 
+ *
  * Admin:
  * - GET /parking/sessions - Listar sesiones
  * - POST /parking/admin/open-gate - Override manual de barrera
@@ -37,16 +37,16 @@ export class ParkingController {
 
   /**
    * POST /parking/entry
-   * 
+   *
    * Validar reserva, matrícula, rango horario y abrir barrera de entrada
-   * 
+   *
    * Body:
    * {
    *   "bookingCode": "RES-ABC123",
    *   "plate": "1234ABC",
    *   "gateId": "entrada-principal" (opcional)
    * }
-   * 
+   *
    * Respuesta:
    * {
    *   "sessionId": "uuid",
@@ -65,16 +65,16 @@ export class ParkingController {
 
   /**
    * POST /parking/exit/quote
-   * 
+   *
    * Calcular minutos transcurridos y precio a pagar
-   * 
+   *
    * Body:
    * {
    *   "bookingCode": "RES-ABC123",
    *   "plate": "1234ABC",
    *   "gateId": "salida-principal" (opcional)
    * }
-   * 
+   *
    * Respuesta:
    * {
    *   "sessionId": "uuid",
@@ -95,16 +95,16 @@ export class ParkingController {
 
   /**
    * POST /parking/exit/pay
-   * 
+   *
    * Procesar pago, cerrar sesión y abrir barrera de salida
-   * 
+   *
    * Body:
    * {
    *   "sessionId": "uuid",
    *   "paymentMethod": "terminal" (opcional),
    *   "gateId": "salida-principal" (opcional)
    * }
-   * 
+   *
    * Respuesta:
    * {
    *   "sessionId": "uuid",
@@ -123,12 +123,12 @@ export class ParkingController {
 
   /**
    * GET /parking/sessions
-   * 
+   *
    * Listar sesiones de parking (admin)
-   * 
+   *
    * Query params:
    * - status: IN_PROGRESS | PAYMENT_PENDING | PAID | CLOSED
-   * 
+   *
    * Requiere autenticación JWT
    */
   @Get('sessions')
@@ -142,15 +142,15 @@ export class ParkingController {
 
   /**
    * POST /parking/admin/open-gate
-   * 
+   *
    * Abrir barrera manualmente (override de emergencia)
-   * 
+   *
    * Body:
    * {
    *   "gateId": "entrada-principal",
    *   "reason": "Emergencia / Fallo técnico / etc."
    * }
-   * 
+   *
    * Requiere autenticación JWT
    */
   @Post('admin/open-gate')
