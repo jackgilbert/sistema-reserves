@@ -165,7 +165,8 @@ export class SettingsService {
     tenant: TenantContext,
   ): Promise<TenantSettings> {
     const updates: any = {};
-    const currentSettings = await this.getSettings(tenant);
+    const currentSettings = await this.getCurrentSettings(tenant);
+    void currentSettings; // avoid eslint no-unused-vars (keeps fetch for potential side effects)
 
     // Mapear campos del DTO a la tabla Instance
     if (dto.general?.businessName) {
@@ -187,10 +188,13 @@ export class SettingsService {
     }
 
     // Update simple instance fields for other settings
-    if (dto.general?.contactEmail) updates.contactEmail = dto.general.contactEmail;
-    if (dto.general?.contactPhone) updates.contactPhone = dto.general.contactPhone;
+    if (dto.general?.contactEmail)
+      updates.contactEmail = dto.general.contactEmail;
+    if (dto.general?.contactPhone)
+      updates.contactPhone = dto.general.contactPhone;
     if (dto.general?.address) updates.contactAddress = dto.general.address;
-    if (dto.general?.description) updates.siteDescription = dto.general.description;
+    if (dto.general?.description)
+      updates.siteDescription = dto.general.description;
 
     // Note: Extended settings removed from schema
     // Additional settings should be stored in metadata or feature flags JSON fields
