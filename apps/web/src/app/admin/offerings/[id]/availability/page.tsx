@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -76,15 +76,7 @@ export default function OfferingAvailabilityPage() {
   const [batchPrice, setBatchPrice] = useState('');
   const [batchReason, setBatchReason] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
-    await Promise.all([fetchOverrides(), fetchSchedules()]);
-  };
-
-  const fetchSchedules = async () => {
+  const fetchSchedules = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -121,9 +113,9 @@ export default function OfferingAvailabilityPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
 
-  const fetchOverrides = async () => {
+  const fetchOverrides = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -157,7 +149,15 @@ export default function OfferingAvailabilityPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
+
+  const fetchData = useCallback(async () => {
+    await Promise.all([fetchOverrides(), fetchSchedules()]);
+  }, [fetchOverrides, fetchSchedules]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   // Calendar generation
   const generateCalendar = (): CalendarDay[][] => {

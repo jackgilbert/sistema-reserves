@@ -43,7 +43,7 @@ export class SchedulesController {
   async findAll(
     @Param('offeringId') offeringId: string,
     @Tenant() tenant: TenantContext,
-  ) {
+  ): Promise<unknown[]> {
     const schedules = await this.prisma.schedule.findMany({
       where: {
         tenantId: tenant.tenantId,
@@ -65,7 +65,7 @@ export class SchedulesController {
     @Param('offeringId') offeringId: string,
     @Body() dto: CreateScheduleDto,
     @Tenant() tenant: TenantContext,
-  ) {
+  ): Promise<unknown> {
     // Verify offering exists
     const offering = await this.prisma.offering.findFirst({
       where: {

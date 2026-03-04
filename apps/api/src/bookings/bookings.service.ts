@@ -618,12 +618,16 @@ export class BookingsService {
     });
 
     try {
+      const bookingWithOffering = booking as typeof booking & {
+        offering?: { name?: string | null };
+      };
+
       await this.emailService.sendBookingCancellation(tenant.tenantId, {
         code: booking.code,
         customerName: booking.customerName,
         customerEmail: booking.customerEmail,
         slotStart: booking.slotStart,
-        offeringName: booking.offering?.name,
+        offeringName: bookingWithOffering.offering?.name ?? undefined,
       });
     } catch (error) {
       this.logger.warn(`Email cancelación falló: ${(error as Error)?.message}`);

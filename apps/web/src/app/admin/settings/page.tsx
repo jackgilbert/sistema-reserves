@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BRANDING_FONTS, BRANDING_FONT_DEFAULTS } from '@/lib/branding';
 
@@ -170,11 +170,7 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  const getAuthHeaders = () => {
+  const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('accessToken');
     const headers: Record<string, string> = {
       'x-tenant-domain': window.location.hostname,
@@ -186,9 +182,9 @@ export default function AdminSettingsPage() {
     }
 
     return headers;
-  };
+  }, []);
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -243,7 +239,11 @@ export default function AdminSettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeaders, router]);
+
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
 
   const handleSaveSettings = async () => {
     if (!settings) return;
@@ -1223,7 +1223,7 @@ export default function AdminSettingsPage() {
                 <div className="border-t pt-6 space-y-4">
                   <h3 className="text-lg font-medium">Plantillas básicas</h3>
                   <p className="text-sm text-gray-600">
-                    Variables disponibles: {{'{{name}}'}}, {{'{{code}}'}}, {{'{{date}}'}}, {{'{{time}}'}}
+                    Variables disponibles: {'{{name}}'}, {'{{code}}'}, {'{{date}}'}, {'{{time}}'}
                   </p>
 
                   <div className="space-y-3">

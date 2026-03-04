@@ -87,12 +87,9 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
 
         setAvailableDateKeys(availableKeys);
 
-        const hasSelected = availableKeys.includes(selectedDateKey);
-        const activeKey = hasSelected ? selectedDateKey : availableKeys[0] || '';
-        setSelectedDateKey(activeKey);
-
-        const daySlots = activeKey ? data[activeKey] : [];
-        setSlots(Array.isArray(daySlots) ? daySlots : []);
+        setSelectedDateKey((previous) =>
+          availableKeys.includes(previous) ? previous : availableKeys[0] || '',
+        );
       } catch (e) {
         console.error('Error al cargar disponibilidad:', e);
         setAvailabilityMap({});
@@ -106,7 +103,10 @@ export default function OfferingPage({ params }: { params: { id: string } }) {
   }, [offering, params.id]);
 
   useEffect(() => {
-    if (!selectedDateKey) return;
+    if (!selectedDateKey) {
+      setSlots([]);
+      return;
+    }
     const daySlots = availabilityMap[selectedDateKey] || [];
     setSlots(Array.isArray(daySlots) ? daySlots : []);
   }, [availabilityMap, selectedDateKey]);

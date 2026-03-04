@@ -177,51 +177,6 @@ class BookingSettingsDto {
   bookingCodePrefix?: string;
 }
 
-class NotificationSettingsDto {
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsBoolean()
-  sendBookingConfirmation?: boolean;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsBoolean()
-  sendBookingReminder?: boolean;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  reminderHoursBefore?: number;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsBoolean()
-  sendCancellationNotification?: boolean;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  fromEmail?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  fromName?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => SmtpSettingsDto)
-  smtp?: SmtpSettingsDto;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => EmailTemplatesDto)
-  templates?: EmailTemplatesDto;
-}
-
 class SmtpSettingsDto {
   @ApiProperty({ required: false })
   @IsOptional()
@@ -300,6 +255,51 @@ class EmailTemplatesDto {
   @ValidateNested()
   @Type(() => EmailTemplateDto)
   bookingCancellation?: EmailTemplateDto;
+}
+
+class NotificationSettingsDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  sendBookingConfirmation?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  sendBookingReminder?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  reminderHoursBefore?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  sendCancellationNotification?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  fromEmail?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  fromName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SmtpSettingsDto)
+  smtp?: SmtpSettingsDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmailTemplatesDto)
+  templates?: EmailTemplatesDto;
 }
 
 class IntegrationsSettingsDto {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
@@ -296,10 +297,12 @@ export default function AdminOfferingEditPage() {
                   title={lang.label}
                 >
                   {lang.flag.startsWith('data:image') ? (
-                    <img
+                    <Image
                       src={lang.flag}
                       alt={lang.label}
-                      style={{ width: '1.5em', height: '1.5em', display: 'inline-block' }}
+                      width={24}
+                      height={24}
+                      className="inline-block"
                     />
                   ) : (
                     <span className="text-2xl">{lang.flag}</span>
@@ -322,7 +325,7 @@ export default function AdminOfferingEditPage() {
             <div className="space-y-4">
               {imageUrl && (
                 <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
-                  <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
+                  <Image src={imageUrl} alt={name} fill sizes="(max-width: 1024px) 100vw, 1024px" className="object-cover" />
                   <button
                     onClick={() => setImageUrl('')}
                     className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-700"
