@@ -10,9 +10,11 @@ import { HealthModule } from './health/health.module';
 import { HoldsModule } from './holds/holds.module';
 import { InstancesModule } from './instances/instances.module';
 import { OfferingsModule } from './offerings/offerings.module';
+import { ParkingModule } from './parking/parking.module';
 import { PaymentsModule } from './payments/payments.module';
 import { SettingsModule } from './settings/settings.module';
 import { TasksModule } from './tasks/tasks.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
 import { TenantModule } from './tenant/tenant.module';
 
@@ -34,10 +36,12 @@ import { TenantModule } from './tenant/tenant.module';
     AvailabilityModule,
     HoldsModule,
     BookingsModule,
+    ParkingModule,
     PaymentsModule,
     CheckInModule,
     TasksModule,
     SettingsModule,
+    UploadsModule,
     HealthModule,
   ],
   providers: [

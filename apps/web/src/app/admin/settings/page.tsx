@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { BRANDING_FONTS, BRANDING_FONT_DEFAULTS } from '@/lib/branding';
 
 interface FeatureFlags {
   bookings: {
@@ -18,7 +19,7 @@ interface FeatureFlags {
   };
   payments: {
     enabled: boolean;
-    provider: 'stripe' | 'none';
+    provider: 'redsys' | 'stripe' | 'none';
     requireDeposit: boolean;
     depositPercentage: number;
   };
@@ -61,6 +62,9 @@ interface TenantSettings {
     logo?: string;
     primaryColor: string;
     secondaryColor: string;
+    primaryFont?: string;
+    secondaryFont?: string;
+    siteTitle?: string;
     accentColor?: string;
     customCSS?: string;
   };
@@ -86,6 +90,33 @@ interface TenantSettings {
     sendCancellationNotification: boolean;
     fromEmail?: string;
     fromName?: string;
+    smtp?: {
+      enabled?: boolean;
+      host?: string;
+      port?: number;
+      user?: string;
+      pass?: string;
+      secure?: boolean;
+      cc?: string;
+      bcc?: string;
+    };
+    templates?: {
+      bookingConfirmation?: {
+        subject?: string;
+        body?: string;
+        html?: string;
+      };
+      bookingReminder?: {
+        subject?: string;
+        body?: string;
+        html?: string;
+      };
+      bookingCancellation?: {
+        subject?: string;
+        body?: string;
+        html?: string;
+      };
+    };
   };
   integrations: {
     stripeEnabled: boolean;
@@ -115,23 +146,31 @@ interface TenantSettings {
   };
 }
 
-type Tab = 'general' | 'features' | 'booking' | 'notifications' | 'integrations' | 'tax' | 'policies' | 'branding' | 'seo';
+type Tab = 'profile' | 'general' | 'features' | 'booking' | 'notifications' | 'integrations' | 'tax' | 'policies' | 'branding' | 'seo';
 
 export default function AdminSettingsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [settings, setSettings] = useState<TenantSettings | null>(null);
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
+  const [profile, setProfile] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [testEmail, setTestEmail] = useState({
+    to: '',
+    subject: 'Test SMTP',
+    body: 'Este es un email de prueba.',
+    html: '',
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  const getAuthHeaders = () => {
+  const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('accessToken');
     const headers: Record<string, string> = {
       'x-tenant-domain': window.location.hostname,
@@ -143,21 +182,26 @@ export default function AdminSettingsPage() {
     }
 
     return headers;
-  };
+  }, []);
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
       const headers = getAuthHeaders();
 
-      const [settingsRes, featuresRes] = await Promise.all([
+      const [settingsRes, featuresRes, profileRes] = await Promise.all([
         fetch('/api/settings', { headers }),
         fetch('/api/settings/features', { headers }),
+        fetch('/api/auth/profile', { headers }),
       ]);
 
-      if (settingsRes.status === 401 || featuresRes.status === 401) {
+      if (
+        settingsRes.status === 401 ||
+        featuresRes.status === 401 ||
+        profileRes.status === 401
+      ) {
         router.push('/admin/login');
         return;
       }
@@ -170,21 +214,36 @@ export default function AdminSettingsPage() {
         throw new Error('Error al cargar feature flags');
       }
 
-      const [settingsData, featuresData] = await Promise.all([
+      if (!profileRes.ok) {
+        throw new Error('Error al cargar perfil');
+      }
+
+      const [settingsData, featuresData, profileData] = await Promise.all([
         settingsRes.json(),
         featuresRes.json(),
+        profileRes.json(),
       ]);
 
       setSettings(settingsData);
       setFeatures(featuresData);
+      setProfile({
+        name: profileData?.name || '',
+        email: profileData?.email || '',
+        role: profileData?.role || '',
+      });
     } catch (err: any) {
       setSettings(null);
       setFeatures(null);
+      setProfile(null);
       setError(err?.message || 'Error al cargar configuración');
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeaders, router]);
+
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
 
   const handleSaveSettings = async () => {
     if (!settings) return;
@@ -242,6 +301,99 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const handleSaveProfile = async () => {
+    if (!profile) return;
+
+    setSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch('/api/auth/profile', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: profile.name,
+          email: profile.email,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Error al guardar perfil');
+
+      setSuccessMessage('Perfil actualizado');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      setError('Completa la contraseña actual y la nueva.');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError('La nueva contraseña no coincide.');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch('/api/auth/password', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Error al cambiar contraseña');
+
+      setSuccessMessage('Contraseña actualizada');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmail.to) {
+      setError('Indica un email destino para la prueba.');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch('/api/settings/notifications/test', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(testEmail),
+      });
+
+      if (!response.ok) throw new Error('Error al enviar email de prueba');
+
+      setSuccessMessage('Email de prueba enviado');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const updateSettings = (path: string[], value: any) => {
     if (!settings) return;
 
@@ -289,6 +441,7 @@ export default function AdminSettingsPage() {
   }
 
   const tabs = [
+    { id: 'profile', label: 'Usuario', icon: '👤' },
     { id: 'general', label: 'General', icon: '🏢' },
     { id: 'features', label: 'Características', icon: '⚡' },
     { id: 'booking', label: 'Reservas', icon: '📅' },
@@ -344,6 +497,112 @@ export default function AdminSettingsPage() {
 
           {/* Tab Content */}
           <div className="p-6">
+            {/* Profile Tab */}
+            {activeTab === 'profile' && profile && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold mb-4">Perfil de Usuario</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre
+                    </label>
+                    <input
+                      type="text"
+                      value={profile.name}
+                      onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={profile.email}
+                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rol
+                  </label>
+                  <input
+                    type="text"
+                    value={profile.role}
+                    disabled
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-100"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? 'Guardando...' : 'Guardar Perfil'}
+                </button>
+
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">Cambiar contraseña</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Contraseña actual
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nueva contraseña
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, newPassword: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Confirmar
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={saving}
+                    className="mt-4 px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50"
+                  >
+                    {saving ? 'Guardando...' : 'Actualizar contraseña'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* General Tab */}
             {activeTab === 'general' && (
               <div className="space-y-6">
@@ -615,9 +874,9 @@ export default function AdminSettingsPage() {
                         value={features.payments.provider}
                         onChange={(e) => updateFeatures(['payments', 'provider'], e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        disabled
                       >
-                        <option value="none">Ninguno</option>
-                        <option value="stripe">Stripe</option>
+                        <option value="redsys">Redsys</option>
                       </select>
                     </div>
 
@@ -857,6 +1116,258 @@ export default function AdminSettingsPage() {
                     onChange={(e) => updateSettings(['notifications', 'fromName'], e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                   />
+                </div>
+
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium mb-4">SMTP</h3>
+
+                  <label className="flex items-center mb-4">
+                    <input
+                      type="checkbox"
+                      checked={!!settings.notifications.smtp?.enabled}
+                      onChange={(e) => updateSettings(['notifications', 'smtp', 'enabled'], e.target.checked)}
+                      className="mr-3 h-4 w-4 text-blue-600 rounded"
+                    />
+                    <span>SMTP habilitado</span>
+                  </label>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Host
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.notifications.smtp?.host || ''}
+                        onChange={(e) => updateSettings(['notifications', 'smtp', 'host'], e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Puerto
+                      </label>
+                      <input
+                        type="number"
+                        value={settings.notifications.smtp?.port ?? 587}
+                        onChange={(e) => updateSettings(['notifications', 'smtp', 'port'], parseInt(e.target.value))}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Usuario
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.notifications.smtp?.user || ''}
+                        onChange={(e) => updateSettings(['notifications', 'smtp', 'user'], e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Contraseña
+                      </label>
+                      <input
+                        type="password"
+                        value={settings.notifications.smtp?.pass || ''}
+                        onChange={(e) => updateSettings(['notifications', 'smtp', 'pass'], e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="flex items-center mt-4">
+                    <input
+                      type="checkbox"
+                      checked={!!settings.notifications.smtp?.secure}
+                      onChange={(e) => updateSettings(['notifications', 'smtp', 'secure'], e.target.checked)}
+                      className="mr-3 h-4 w-4 text-blue-600 rounded"
+                    />
+                    <span>Usar conexión segura (TLS)</span>
+                  </label>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        CC (separar por coma)
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.notifications.smtp?.cc || ''}
+                        onChange={(e) => updateSettings(['notifications', 'smtp', 'cc'], e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        placeholder="cc1@dominio.com, cc2@dominio.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        BCC (separar por coma)
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.notifications.smtp?.bcc || ''}
+                        onChange={(e) => updateSettings(['notifications', 'smtp', 'bcc'], e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        placeholder="bcc@dominio.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-6 space-y-4">
+                  <h3 className="text-lg font-medium">Plantillas básicas</h3>
+                  <p className="text-sm text-gray-600">
+                    Variables disponibles: {'{{name}}'}, {'{{code}}'}, {'{{date}}'}, {'{{time}}'}
+                  </p>
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-gray-800">Confirmación</h4>
+                    <input
+                      type="text"
+                      value={settings.notifications.templates?.bookingConfirmation?.subject || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingConfirmation', 'subject'], e.target.value)
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Asunto"
+                    />
+                    <textarea
+                      value={settings.notifications.templates?.bookingConfirmation?.body || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingConfirmation', 'body'], e.target.value)
+                      }
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Mensaje"
+                    />
+                    <textarea
+                      value={settings.notifications.templates?.bookingConfirmation?.html || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingConfirmation', 'html'], e.target.value)
+                      }
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                      placeholder="HTML (opcional)"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-gray-800">Recordatorio</h4>
+                    <input
+                      type="text"
+                      value={settings.notifications.templates?.bookingReminder?.subject || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingReminder', 'subject'], e.target.value)
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Asunto"
+                    />
+                    <textarea
+                      value={settings.notifications.templates?.bookingReminder?.body || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingReminder', 'body'], e.target.value)
+                      }
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Mensaje"
+                    />
+                    <textarea
+                      value={settings.notifications.templates?.bookingReminder?.html || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingReminder', 'html'], e.target.value)
+                      }
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                      placeholder="HTML (opcional)"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-gray-800">Cancelación</h4>
+                    <input
+                      type="text"
+                      value={settings.notifications.templates?.bookingCancellation?.subject || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingCancellation', 'subject'], e.target.value)
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Asunto"
+                    />
+                    <textarea
+                      value={settings.notifications.templates?.bookingCancellation?.body || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingCancellation', 'body'], e.target.value)
+                      }
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Mensaje"
+                    />
+                    <textarea
+                      value={settings.notifications.templates?.bookingCancellation?.html || ''}
+                      onChange={(e) =>
+                        updateSettings(['notifications', 'templates', 'bookingCancellation', 'html'], e.target.value)
+                      }
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                      placeholder="HTML (opcional)"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t pt-6 space-y-4">
+                  <h3 className="text-lg font-medium">Email de prueba</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Destinatario
+                      </label>
+                      <input
+                        type="email"
+                        value={testEmail.to}
+                        onChange={(e) => setTestEmail({ ...testEmail, to: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        placeholder="destino@dominio.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Asunto
+                      </label>
+                      <input
+                        type="text"
+                        value={testEmail.subject}
+                        onChange={(e) => setTestEmail({ ...testEmail, subject: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  <textarea
+                    value={testEmail.body}
+                    onChange={(e) => setTestEmail({ ...testEmail, body: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Mensaje (texto)"
+                  />
+                  <textarea
+                    value={testEmail.html}
+                    onChange={(e) => setTestEmail({ ...testEmail, html: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                    placeholder="HTML (opcional)"
+                  />
+                  <button
+                    onClick={handleSendTestEmail}
+                    disabled={saving}
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {saving ? 'Enviando...' : 'Enviar prueba'}
+                  </button>
                 </div>
 
                 <button
@@ -1277,6 +1788,19 @@ export default function AdminSettingsPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Título del sitio
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.branding.siteTitle || ''}
+                    onChange={(e) => updateSettings(['branding', 'siteTitle'], e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Sistema de Reservas"
+                  />
+                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1336,6 +1860,42 @@ export default function AdminSettingsPage() {
                         className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fuente primaria
+                    </label>
+                    <select
+                      value={settings.branding.primaryFont || BRANDING_FONT_DEFAULTS.primary}
+                      onChange={(e) => updateSettings(['branding', 'primaryFont'], e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    >
+                      {BRANDING_FONTS.map((font) => (
+                        <option key={font.id} value={font.id}>
+                          {font.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fuente secundaria
+                    </label>
+                    <select
+                      value={settings.branding.secondaryFont || BRANDING_FONT_DEFAULTS.secondary}
+                      onChange={(e) => updateSettings(['branding', 'secondaryFont'], e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
+                    >
+                      {BRANDING_FONTS.map((font) => (
+                        <option key={font.id} value={font.id}>
+                          {font.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

@@ -54,18 +54,23 @@ jobs:
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile
 
-      - name: Generar cliente Prisma
-        run: pnpm --filter @sistema-reservas/db db:generate
-        env:
-          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
-
       - name: Validar schema Prisma
         run: pnpm --filter @sistema-reservas/db prisma validate
         env:
           DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
 
+      - name: Generar cliente Prisma
+        run: pnpm --filter @sistema-reservas/db db:generate
+        env:
+          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
+
       - name: Push schema a base de datos
         run: pnpm --filter @sistema-reservas/db db:push
+        env:
+          DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
+
+      - name: Regenerar cliente Prisma (asegurar tipos actualizados)
+        run: pnpm --filter @sistema-reservas/db db:generate
         env:
           DATABASE_URL: postgresql://reservas:reservas123@localhost:5432/sistema_reservas_test
 

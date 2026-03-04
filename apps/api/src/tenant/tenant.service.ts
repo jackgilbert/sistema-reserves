@@ -18,6 +18,8 @@ export class TenantService {
       throw new NotFoundException(`Dominio inválido o no proporcionado`);
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     // Normalizar dominios de desarrollo a 'localhost'
     const normalizedDomain = this.normalizeDomain(domain);
 
@@ -37,8 +39,8 @@ export class TenantService {
       throw error;
     }
 
-    // Si no se encuentra el dominio, buscar el primer dominio activo como fallback (desarrollo)
-    if (!domainRecord) {
+    // Si no se encuentra el dominio, buscar el primer dominio activo como fallback (solo desarrollo)
+    if (!domainRecord && !isProduction) {
       domainRecord = await this.prisma.domain.findFirst({
         where: {
           instance: { active: true },
@@ -55,6 +57,10 @@ export class TenantService {
           include: { instance: true },
         });
       }
+    }
+
+    if (!domainRecord && isProduction) {
+      throw new NotFoundException(`Dominio ${domain} no encontrado`);
     }
 
     if (!domainRecord) {
@@ -84,11 +90,16 @@ export class TenantService {
   /**
    * Normaliza el dominio para desarrollo
    * Mapea dominios de GitHub Codespaces, Gitpod, etc. a 'localhost'
+   * NOTA: Preserva subdominios de localhost (ej: museo.localhost, parking.localhost)
    */
   private normalizeDomain(domain: string): string {
+    // Preservar subdominios de localhost para desarrollo multi-tenant
+    if (domain.endsWith('.localhost') || domain === 'localhost') {
+      return domain;
+    }
+
     // Si contiene patrones de desarrollo, usar localhost
     if (
-      domain.includes('localhost') ||
       domain.includes('.app.github.dev') ||
       domain.includes('.gitpod.io') ||
       domain.includes('.repl.co') ||

@@ -45,4 +45,12 @@ export class QueryAvailabilityDto {
   @IsOptional()
   @IsString()
   resourceId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Clave de variante del slot (ej: lang:es). Si se omite, usa ""',
+  })
+  @IsOptional()
+  @IsString()
+  slotVariantKey?: string;
 }

@@ -16,6 +16,16 @@ export interface RegisterUserDto {
   role: 'ADMIN' | 'STAFF';
 }
 
+export interface UpdateProfileDto {
+  name?: string;
+  email?: string;
+}
+
+export interface ChangePasswordDto {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface JwtPayload {
   sub: string;
   email: string;
@@ -172,5 +182,84 @@ export class AuthService {
       role: user.role,
       createdAt: user.createdAt,
     };
+  }
+
+  /**
+   * Actualizar perfil del usuario autenticado
+   */
+  async updateProfile(
+    userId: string,
+    tenantId: string,
+    dto: UpdateProfileDto,
+  ) {
+    if (!dto.email && !dto.name) {
+      return this.getProfile(userId, tenantId);
+    }
+
+    if (dto.email) {
+      const existing = await this.prisma.user.findUnique({
+        where: {
+          tenantId_email: {
+            tenantId,
+            email: dto.email,
+          },
+        },
+      });
+      if (existing && existing.id !== userId) {
+        throw new UnauthorizedException('El email ya está registrado');
+      }
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.email ? { email: dto.email } : {}),
+        ...(dto.name ? { name: dto.name } : {}),
+      },
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      createdAt: user.createdAt,
+    };
+  }
+
+  /**
+   * Cambiar contraseña del usuario autenticado
+   */
+  async changePassword(
+    userId: string,
+    tenantId: string,
+    dto: ChangePasswordDto,
+  ) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Contraseña actual incorrecta');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    return { success: true };
   }
 }

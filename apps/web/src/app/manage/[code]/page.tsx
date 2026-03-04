@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, Booking } from '@/lib/api';
 import { formatPrice, formatDate, formatTime } from '@/lib/utils';
+import { useLocale } from '@/components/LocaleProvider';
 
 export default function ManageBookingPage({ params }: { params: { code: string } }) {
   const router = useRouter();
+  const { locale } = useLocale();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -79,6 +81,16 @@ export default function ManageBookingPage({ params }: { params: { code: string }
 
   const canBeCancelled = booking.status === 'CONFIRMED' || booking.status === 'HOLD';
   const isCancelled = booking.status === 'CANCELLED' || booking.status === 'REFUNDED';
+  const slotVariantKey = (booking as any).slotVariantKey as string | undefined;
+  const slotVariantLabel = (() => {
+    const key = typeof slotVariantKey === 'string' ? slotVariantKey.trim() : '';
+    if (!key) return undefined;
+    const variants = (booking.offering as any)?.metadata?.slotVariants;
+    if (!Array.isArray(variants)) return key;
+    const match = variants.find((v: any) => v && typeof v.key === 'string' && v.key === key);
+    const label = match && typeof match.label === 'string' ? match.label.trim() : '';
+    return label || key;
+  })();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,9 +149,16 @@ export default function ManageBookingPage({ params }: { params: { code: string }
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Fecha y hora</p>
-                  <p className="font-medium">{formatDate(booking.slotStart)}</p>
-                  <p className="font-medium">{formatTime(booking.slotStart)}</p>
+                  <p className="font-medium">{formatDate(booking.slotStart, undefined, locale)}</p>
+                  <p className="font-medium">{formatTime(booking.slotStart, locale)}</p>
                 </div>
+
+                {slotVariantLabel && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Idioma</p>
+                    <p className="font-medium">{slotVariantLabel}</p>
+                  </div>
+                )}
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Cantidad</p>
@@ -149,7 +168,7 @@ export default function ManageBookingPage({ params }: { params: { code: string }
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total</p>
                   <p className="text-xl font-bold text-blue-600">
-                    {formatPrice(booking.totalAmount, booking.currency)}
+                    {formatPrice(booking.totalAmount, booking.currency, locale)}
                   </p>
                 </div>
 

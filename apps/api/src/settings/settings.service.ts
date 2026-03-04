@@ -99,59 +99,68 @@ export class SettingsService {
         logo: true,
         primaryColor: true,
         secondaryColor: true,
+        primaryFont: true,
+        secondaryFont: true,
+        siteTitle: true,
         timezone: true,
         locale: true,
         currency: true,
         stripeAccount: true,
         featureFlags: true,
-        extendedSettings: true,
+        notificationSettings: true,
+        contactEmail: true,
+        contactPhone: true,
+        contactAddress: true,
+        siteDescription: true,
       },
     });
 
     if (!instance) {
-      throw new NotFoundException('Tenant no encontrado');
+      throw new NotFoundException('Instancia no encontrada');
     }
 
-    // Obtener extended settings y hacer merge con defaults
-    const extendedSettings = (instance.extendedSettings as any) || {};
-
+    // Extended settings removed - using instance fields and defaults
     // Construir settings desde la instance actual
     const settings: TenantSettings = {
       general: {
         businessName: instance.name,
-        businessType: extendedSettings.general?.businessType || 'other',
-        contactEmail:
-          extendedSettings.general?.contactEmail || 'info@example.com',
-        contactPhone: extendedSettings.general?.contactPhone,
-        address: extendedSettings.general?.address,
-        description: extendedSettings.general?.description,
+        businessType: 'other',
+        contactEmail: instance.contactEmail || 'info@example.com',
+        contactPhone: instance.contactPhone || undefined,
+        address: instance.contactAddress || undefined,
+        description: instance.siteDescription || undefined,
       },
       regional: {
         timezone: instance.timezone,
         locale: instance.locale,
         currency: instance.currency,
-        dateFormat: extendedSettings.regional?.dateFormat || 'dd/MM/yyyy',
-        timeFormat: extendedSettings.regional?.timeFormat || '24h',
+        dateFormat: 'dd/MM/yyyy',
+        timeFormat: '24h',
       },
       branding: {
         logo: instance.logo || undefined,
         primaryColor: instance.primaryColor,
         secondaryColor: instance.secondaryColor,
-        accentColor: extendedSettings.branding?.accentColor,
-        customCSS: extendedSettings.branding?.customCSS,
+        primaryFont: instance.primaryFont || DEFAULT_TENANT_SETTINGS.branding.primaryFont,
+        secondaryFont: instance.secondaryFont || DEFAULT_TENANT_SETTINGS.branding.secondaryFont,
+        siteTitle: instance.siteTitle || DEFAULT_TENANT_SETTINGS.branding.siteTitle,
+        accentColor: undefined,
+        customCSS: undefined,
       },
-      policies: extendedSettings.policies || DEFAULT_TENANT_SETTINGS.policies,
-      booking: extendedSettings.booking || DEFAULT_TENANT_SETTINGS.booking,
-      notifications:
-        extendedSettings.notifications || DEFAULT_TENANT_SETTINGS.notifications,
+      policies: DEFAULT_TENANT_SETTINGS.policies,
+      booking: DEFAULT_TENANT_SETTINGS.booking,
+      notifications: this.deepMerge(
+        DEFAULT_TENANT_SETTINGS.notifications,
+        (instance.notificationSettings as any) || {},
+      ),
       integrations: {
         stripeEnabled: !!instance.stripeAccount,
-        stripePublicKey: extendedSettings.integrations?.stripePublicKey,
-        googleAnalyticsId: extendedSettings.integrations?.googleAnalyticsId,
-        customWebhookUrl: extendedSettings.integrations?.customWebhookUrl,
+        stripePublicKey: undefined,
+        googleAnalyticsId: undefined,
+        customWebhookUrl: undefined,
       },
-      tax: extendedSettings.tax || DEFAULT_TENANT_SETTINGS.tax,
-      seo: extendedSettings.seo || {},
+      tax: DEFAULT_TENANT_SETTINGS.tax,
+      seo: {},
     };
 
     return settings;
@@ -166,6 +175,7 @@ export class SettingsService {
   ): Promise<TenantSettings> {
     const updates: any = {};
     const currentSettings = await this.getSettings(tenant);
+    void currentSettings; // avoid eslint no-unused-vars (keeps fetch for potential side effects)
 
     // Mapear campos del DTO a la tabla Instance
     if (dto.general?.businessName) {
@@ -184,35 +194,30 @@ export class SettingsService {
         updates.primaryColor = dto.branding.primaryColor;
       if (dto.branding.secondaryColor)
         updates.secondaryColor = dto.branding.secondaryColor;
+      if (dto.branding.primaryFont !== undefined)
+        updates.primaryFont = dto.branding.primaryFont;
+      if (dto.branding.secondaryFont !== undefined)
+        updates.secondaryFont = dto.branding.secondaryFont;
+      if (dto.branding.siteTitle !== undefined)
+        updates.siteTitle = dto.branding.siteTitle;
     }
 
-    // Actualizar extendedSettings con el resto de la configuración
-    const extendedSettings = this.deepMerge(currentSettings, dto);
+    if (dto.notifications) {
+      const current = await this.getNotificationSettings(tenant);
+      updates.notificationSettings = this.deepMerge(current, dto.notifications);
+    }
 
-    // Remover campos que se guardan en columnas dedicadas
-    delete extendedSettings.general?.businessName;
+    // Update simple instance fields for other settings
+    if (dto.general?.contactEmail)
+      updates.contactEmail = dto.general.contactEmail;
+    if (dto.general?.contactPhone)
+      updates.contactPhone = dto.general.contactPhone;
+    if (dto.general?.address) updates.contactAddress = dto.general.address;
+    if (dto.general?.description)
+      updates.siteDescription = dto.general.description;
 
-    updates.extendedSettings = {
-      general: extendedSettings.general,
-      regional: {
-        dateFormat: extendedSettings.regional.dateFormat,
-        timeFormat: extendedSettings.regional.timeFormat,
-      },
-      branding: {
-        accentColor: extendedSettings.branding.accentColor,
-        customCSS: extendedSettings.branding.customCSS,
-      },
-      policies: extendedSettings.policies,
-      booking: extendedSettings.booking,
-      notifications: extendedSettings.notifications,
-      integrations: {
-        stripePublicKey: extendedSettings.integrations.stripePublicKey,
-        googleAnalyticsId: extendedSettings.integrations.googleAnalyticsId,
-        customWebhookUrl: extendedSettings.integrations.customWebhookUrl,
-      },
-      tax: extendedSettings.tax,
-      seo: extendedSettings.seo,
-    };
+    // Note: Extended settings removed from schema
+    // Additional settings should be stored in metadata or feature flags JSON fields
 
     if (Object.keys(updates).length > 0) {
       await this.prisma.instance.update({
@@ -253,6 +258,7 @@ export class SettingsService {
           bookingsEnabled: flags.bookings.enabled,
           checkInEnabled: flags.checkIn.enabled,
           paymentsEnabled: flags.payments.enabled,
+          paymentsProvider: flags.payments.provider,
         },
       } as any),
     };
@@ -289,6 +295,24 @@ export class SettingsService {
     defaults: FeatureFlags,
   ): FeatureFlags {
     return this.deepMerge(defaults, partial);
+  }
+
+  private async getNotificationSettings(
+    tenant: TenantContext,
+  ): Promise<Record<string, any>> {
+    const instance = await this.prisma.instance.findUnique({
+      where: { id: tenant.tenantId },
+      select: { notificationSettings: true },
+    });
+
+    if (!instance) {
+      throw new NotFoundException('Instancia no encontrada');
+    }
+
+    return this.deepMerge(
+      DEFAULT_TENANT_SETTINGS.notifications,
+      (instance.notificationSettings as any) || {},
+    );
   }
 
   /**

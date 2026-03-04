@@ -1,13 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { HoldsService } from '../holds/holds.service';
+import { PrismaClient } from '@sistema-reservas/db';
+import { addHours, addMinutes } from 'date-fns';
+import { EmailService } from '../notifications/notifications.service';
+import { DEFAULT_TENANT_SETTINGS } from '../settings/settings.types';
 
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
   private readonly cronEnabled = process.env.ENABLE_CRON !== 'false';
 
-  constructor(private readonly holdsService: HoldsService) {
+  constructor(
+    private readonly holdsService: HoldsService,
+    private readonly prisma: PrismaClient,
+    private readonly emailService: EmailService,
+  ) {
     if (!this.cronEnabled) {
       this.logger.warn('⚠️  Cron jobs deshabilitados (ENABLE_CRON=false)');
     }
@@ -63,5 +71,83 @@ export class TasksService {
 
     // TODO: Implementar generación de reportes
     this.logger.debug('Generación de reportes programada');
+  }
+
+  /**
+   * Enviar recordatorios de reserva
+   * Se ejecuta cada 15 minutos
+   */
+  @Cron('*/15 * * * *')
+  async sendBookingReminders() {
+    if (!this.cronEnabled) return;
+
+    const now = new Date();
+    try {
+      const instances = await this.prisma.instance.findMany({
+        select: {
+          id: true,
+          notificationSettings: true,
+        },
+      });
+
+      for (const instance of instances) {
+        const settings = {
+          ...DEFAULT_TENANT_SETTINGS.notifications,
+          ...(instance.notificationSettings as Record<string, any>),
+        };
+
+        if (!settings.sendBookingReminder) continue;
+
+        const hours = settings.reminderHoursBefore ?? 24;
+        const target = addHours(now, hours);
+        const windowStart = addMinutes(target, -15);
+        const windowEnd = addMinutes(target, 15);
+
+        const bookings = await this.prisma.booking.findMany({
+          where: {
+            tenantId: instance.id,
+            status: 'CONFIRMED',
+            slotStart: {
+              gte: windowStart,
+              lte: windowEnd,
+            },
+          },
+          include: {
+            offering: { select: { name: true } },
+          },
+        });
+
+        for (const booking of bookings) {
+          const meta = (booking.metadata || {}) as Record<string, any>;
+          if (meta.reminderSentAt) continue;
+
+          try {
+            await this.emailService.sendBookingReminder(instance.id, {
+              code: booking.code,
+              customerName: booking.customerName,
+              customerEmail: booking.customerEmail,
+              slotStart: booking.slotStart,
+              offeringName: booking.offering?.name,
+            });
+
+            await this.prisma.booking.update({
+              where: { id: booking.id },
+              data: {
+                metadata: {
+                  ...meta,
+                  reminderSentAt: now.toISOString(),
+                },
+              },
+            });
+          } catch (error) {
+            this.logger.warn(
+              `Error enviando recordatorio ${booking.code}: ${(error as Error)?.message}`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error al enviar recordatorios:', error);
+    }
   }
 }

@@ -58,6 +58,7 @@ export class AvailabilityController {
       query.offeringId,
       query.startDate,
       query.endDate,
+      query.slotVariantKey,
       tenant,
     );
   }

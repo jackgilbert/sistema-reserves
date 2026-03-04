@@ -25,12 +25,17 @@ model Instance {
   logo           String?
   primaryColor   String  @default("#3B82F6")
   secondaryColor String  @default("#10B981")
+  primaryFont    String? // e.g. "Manrope"
+  secondaryFont  String? // e.g. "Merriweather"
 
   // Configuración
   timezone      String  @default("Europe/Madrid")
   locale        String  @default("es-ES")
   currency      String  @default("EUR")
   stripeAccount String? // Stripe Connect account ID
+
+  // Notificaciones (SMTP, plantillas, etc.)
+  notificationSettings Json @default("{}")
 
   // Configuración web pública (frontend)
   siteTitle       String?
@@ -44,8 +49,6 @@ model Instance {
   featureFlags Json @default("{}")
 
   // Extended settings (JSON) - para configuraciones adicionales como tax, notifications, etc.
-  extendedSettings Json @default("{}")
-
   // Relaciones
   domains             Domain[]
   users               User[]
@@ -58,6 +61,9 @@ model Instance {
   inventoryBuckets    InventoryBucket[]
   resourceAllocations ResourceAllocation[]
   schedules           Schedule[]
+  availabilityOverrides AvailabilityOverride[]
+  parkingSessions     ParkingSession[]
+  gateEvents          GateEvent[]
 
   @@index([slug])
   @@index([active])
@@ -124,6 +130,7 @@ model Offering {
   basePrice     Int // en centavos
   currency      String @default("EUR")
   priceVariants Json   @default("[]") // [{name, price, description}]
+  images        Json   @default("[]") // ["https://..."]
 
   // Campos personalizados (esquema JSON)
   customFieldsSchema Json @default("[]") // [{name, type, required, options}]
@@ -138,6 +145,7 @@ model Offering {
   resources        Resource[]
   bookings         Booking[]
   holds            Hold[]
+  availabilityOverrides AvailabilityOverride[]
 
   @@unique([tenantId, slug])
   @@unique([tenantId, id])
@@ -290,6 +298,7 @@ model Booking {
   payments            Payment[]
   checkInEvents       CheckInEvent[]
   resourceAllocations ResourceAllocation[]
+  parkingSession      ParkingSession?
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -463,4 +472,82 @@ model CheckInEvent {
   @@index([tenantId, ticketId])
   @@index([tenantId, scannedAt])
   @@map("checkin_events")
+}
+
+// ============================================================================
+// AVAILABILITY OVERRIDES (CALENDARIO)
+// ============================================================================
+
+model AvailabilityOverride {
+  id               String   @id @default(uuid())
+  tenantId         String
+  offeringId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  dateFrom         DateTime
+  dateTo           DateTime
+  type             String
+  isClosed         Boolean  @default(false)
+  capacityOverride Int?
+  priceOverride    Int?
+  priceMultiplier  Int?
+  reason           String?
+  metadata         Json     @default("{}")
+
+  instance Instance @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering Offering @relation(fields: [tenantId, offeringId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, offeringId])
+  @@index([tenantId, offeringId, dateFrom, dateTo])
+  @@index([dateFrom, dateTo])
+  @@map("availability_overrides")
+}
+
+// ============================================================================
+// PARKING
+// ============================================================================
+
+model ParkingSession {
+  id             String    @id @default(uuid())
+  tenantId       String
+  bookingId      String    @unique // 1 booking = 1 sesión
+  plate          String // normalizada (uppercase, sin espacios)
+  entryAt        DateTime
+  exitAt         DateTime?
+  status         String // IN_PROGRESS | PAYMENT_PENDING | PAID | CLOSED
+  pricePerMinute Int // snapshot en centavos/minuto
+  amountDue      Int       @default(0) // en centavos
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  metadata       Json      @default("{}") // matchedBy: exact|tolerant, gateId, etc.
+
+  instance   Instance     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking    Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  gateEvents GateEvent[]
+
+  @@unique([tenantId, bookingId])
+  @@index([tenantId, status])
+  @@index([tenantId, plate])
+  @@index([entryAt])
+  @@map("parking_sessions")
+}
+
+model GateEvent {
+  id               String   @id @default(uuid())
+  tenantId         String
+  parkingSessionId String?
+  type             String // ENTRY_ATTEMPT | ENTRY_OPENED | EXIT_ATTEMPT | QUOTE_CREATED | PAYMENT_OK | PAYMENT_FAILED | EXIT_OPENED
+  source           String   @default("API") // QR | PLATE | MANUAL | API
+  createdAt        DateTime @default(now())
+  metadata         Json     @default("{}") // plate leída, distancia Hamming, gateId, error, etc.
+
+  instance       Instance        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parkingSession ParkingSession? @relation(fields: [parkingSessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, parkingSessionId])
+  @@index([tenantId, type])
+  @@index([createdAt])
+  @@map("gate_events")
 }

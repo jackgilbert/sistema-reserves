@@ -6,10 +6,14 @@ import {
   Param,
   Headers,
   Patch,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { BookingsService, CreateBookingFromHoldDto } from './bookings.service';
 import { TenantService } from '../tenant/tenant.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Bookings')
 @Controller('bookings')
@@ -46,6 +50,8 @@ export class BookingsController {
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Booking encontrado' })
   @ApiResponse({ status: 404, description: 'Booking no encontrado' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async getBookingByCode(
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
@@ -95,6 +101,8 @@ export class BookingsController {
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Booking cancelado' })
   @ApiResponse({ status: 400, description: 'No se puede cancelar' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async cancelBooking(
     @Param('code') code: string,
     @Headers('x-tenant-domain') domain: string,
@@ -113,6 +121,8 @@ export class BookingsController {
   @ApiOperation({ summary: 'Listar bookings (admin)' })
   @ApiHeader({ name: 'x-tenant-domain', required: true })
   @ApiResponse({ status: 200, description: 'Lista de bookings' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   async listBookings(
     @Headers('x-tenant-domain') domain: string,
   ): Promise<unknown[]> {

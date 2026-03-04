@@ -6,10 +6,17 @@ interface Booking {
   id: string;
   code: string;
   status: string;
-  name: string;
-  email: string;
+  customerName: string;
+  customerEmail: string;
   totalAmount: number;
   createdAt: string;
+  slotVariantKey?: string;
+  slotStart?: string;
+  quantity?: number;
+  offering?: {
+    name: string;
+    metadata?: Record<string, any>;
+  };
   items: Array<{
     offering: {
       name: string;
@@ -52,6 +59,7 @@ export default function AdminBookingsPage() {
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
       PENDING_PAYMENT: 'bg-yellow-100 text-yellow-800',
+      HOLD: 'bg-yellow-100 text-yellow-800',
       CONFIRMED: 'bg-green-100 text-green-800',
       USED: 'bg-blue-100 text-blue-800',
       CANCELLED: 'bg-red-100 text-red-800',
@@ -59,6 +67,7 @@ export default function AdminBookingsPage() {
 
     const labels: Record<string, string> = {
       PENDING_PAYMENT: 'Pendiente Pago',
+      HOLD: 'Pendiente Pago',
       CONFIRMED: 'Confirmada',
       USED: 'Utilizada',
       CANCELLED: 'Cancelada',
@@ -76,6 +85,16 @@ export default function AdminBookingsPage() {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
+  };
+
+  const getSlotVariantLabel = (booking: Booking) => {
+    const key = (booking.slotVariantKey || '').trim();
+    if (!key) return '-';
+    const variants = booking.offering?.metadata?.slotVariants;
+    if (!Array.isArray(variants)) return key;
+    const match = variants.find((v: any) => v && typeof v.key === 'string' && v.key === key);
+    const label = match && typeof match.label === 'string' ? match.label.trim() : '';
+    return label || key;
   };
 
   const formatCurrency = (amount: number) => {
@@ -132,6 +151,9 @@ export default function AdminBookingsPage() {
                       Fecha/Hora
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Idioma
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Cantidad
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -156,17 +178,24 @@ export default function AdminBookingsPage() {
                           {booking.code}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <div>{booking.name}</div>
-                          <div className="text-xs text-gray-400">{booking.email}</div>
+                          <div>{booking.customerName}</div>
+                          <div className="text-xs text-gray-400">{booking.customerEmail}</div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {booking.items[0]?.offering.name}
+                          {booking.offering?.name || booking.items[0]?.offering?.name || '-'}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {booking.items[0] && formatDate(booking.items[0].slot)}
+                          {booking.slotStart
+                            ? formatDate(booking.slotStart)
+                            : booking.items[0]
+                              ? formatDate(booking.items[0].slot)
+                              : '-'}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {booking.items[0]?.quantity}
+                          {getSlotVariantLabel(booking)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {booking.quantity ?? booking.items[0]?.quantity ?? '-'}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {formatCurrency(booking.totalAmount)}

@@ -46,6 +46,13 @@ export class TenantMiddleware implements NestMiddleware {
       domain = this.normalizeDomain(host);
     }
 
+    console.log(
+      '[TenantMiddleware] Host header:',
+      req.get('host'),
+      '=> domain:',
+      domain,
+    );
+
     if (!domain) {
       throw new NotFoundException('Dominio inválido o no proporcionado');
     }
@@ -76,7 +83,9 @@ export class TenantMiddleware implements NestMiddleware {
           ? `: ${(error as any).message}`
           : '';
 
-      throw new InternalServerErrorException(`Error al resolver el tenant${detail}`);
+      throw new InternalServerErrorException(
+        `Error al resolver el tenant${detail}`,
+      );
     }
   }
 }

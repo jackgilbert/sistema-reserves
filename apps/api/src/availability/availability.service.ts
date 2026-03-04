@@ -35,6 +35,7 @@ export class AvailabilityService {
     offeringId: string,
     startDate: string,
     endDate: string,
+    slotVariantKey: string | undefined,
     tenant: TenantContext,
   ): Promise<Record<string, TimeSlot[]>> {
     const start = startOfDay(parseISO(startDate));
@@ -71,7 +72,7 @@ export class AvailabilityService {
       return {};
     }
 
-    const schedule = offering.schedules[0]; // Usar primer schedule
+    const schedules = offering.schedules;
 
     // **OPTIMIZATION: Fetch all inventory buckets for the date range at once**
     const buckets = await this.prisma.inventoryBucket.findMany({
@@ -97,15 +98,26 @@ export class AvailabilityService {
     while (currentDate <= end) {
       const dayOfWeek = (currentDate.getDay() + 6) % 7; // Convertir domingo=0 a lunes=0
 
-      // Verificar si el día está en el schedule
-      if (schedule.daysOfWeek.includes(dayOfWeek)) {
+      const daySlots: TimeSlot[] = [];
+      for (const schedule of schedules) {
+        if (!schedule.daysOfWeek.includes(dayOfWeek)) continue;
+
+        const validFrom = startOfDay(schedule.validFrom);
+        const validTo = schedule.validTo ? endOfDay(schedule.validTo) : null;
+        if (currentDate < validFrom) continue;
+        if (validTo && currentDate > validTo) continue;
+
         const slots = this.generateSlotsForDay(
           currentDate,
           offering,
           schedule,
           bucketMap,
         );
-        availability[currentDate.toISOString().split('T')[0]] = slots;
+        daySlots.push(...slots);
+      }
+
+      if (daySlots.length > 0) {
+        availability[currentDate.toISOString().split('T')[0]] = daySlots;
       }
 
       currentDate = addDays(currentDate, 1);

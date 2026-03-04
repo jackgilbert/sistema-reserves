@@ -9,6 +9,9 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "db:generate": "pnpm -C packages/db db:generate",
+    "db:migrate": "pnpm -C packages/db db:migrate",
+    "db:seed": "pnpm -C packages/db db:seed",
     "clean": "pnpm -r clean"
   },
   "keywords": [
@@ -20,6 +23,18 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@zxing/browser": "^0.1.5"
+    "@nestjs/throttler": "^6.5.0",
+    "@zxing/browser": "^0.1.5",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "multer": "^2.0.2",
+    "nodemailer": "^7.0.13",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/multer": "^2.0.0",
+    "@types/nodemailer": "^7.0.9",
+    "@types/uuid": "^11.0.0",
+    "typescript": "5.7.2"
   }
 }

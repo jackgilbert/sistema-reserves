@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, Booking } from '@/lib/api';
 import { formatPrice, formatDate, formatTime } from '@/lib/utils';
+import { useLocale } from '@/components/LocaleProvider';
 import QRCode from 'qrcode';
 
 export default function ConfirmPage({ params }: { params: { code: string } }) {
   const router = useRouter();
+  const { locale } = useLocale();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -171,8 +173,8 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Fecha y hora</p>
-                  <p className="font-medium">{formatDate(booking.slotStart)}</p>
-                  <p className="font-medium">{formatTime(booking.slotStart)}</p>
+                  <p className="font-medium">{formatDate(booking.slotStart, undefined, locale)}</p>
+                  <p className="font-medium">{formatTime(booking.slotStart, locale)}</p>
                 </div>
 
                 <div>
@@ -183,7 +185,7 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total pagado</p>
                   <p className="text-xl font-bold text-blue-600">
-                    {formatPrice(booking.totalAmount, booking.currency)}
+                    {formatPrice(booking.totalAmount, booking.currency, locale)}
                   </p>
                 </div>
 
@@ -252,6 +254,7 @@ export default function ConfirmPage({ params }: { params: { code: string } }) {
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     HOLD: 'Pendiente',
+    PENDING_PAYMENT: 'Pendiente de pago',
     CONFIRMED: 'Confirmada',
     CANCELLED: 'Cancelada',
     REFUNDED: 'Reembolsada',

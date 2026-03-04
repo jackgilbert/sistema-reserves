@@ -40,6 +40,16 @@ export const DayOfWeek = {
 
 export type DayOfWeek = typeof DayOfWeek[keyof typeof DayOfWeek];
 
+// Availability Override types
+export const AvailabilityOverrideType = {
+  BLACKOUT: 'BLACKOUT',
+  CAPACITY_OVERRIDE: 'CAPACITY_OVERRIDE',
+  PRICE_OVERRIDE: 'PRICE_OVERRIDE',
+  CUSTOM: 'CUSTOM'
+} as const;
+
+export type AvailabilityOverrideType = typeof AvailabilityOverrideType[keyof typeof AvailabilityOverrideType];
+
 export interface TenantContext {
   tenantId: string;
   instanceSlug: string;
@@ -53,6 +63,68 @@ export interface BrandingConfig {
   secondaryColor: string;
 }
 
-export interface FeatureFlags {
+export type FeatureFlags = {
   [key: string]: boolean;
+};
+
+// Price Variant types (inline to avoid ESM resolution issues)
+export interface PriceVariant {
+  name: string;
+  label: string;
+  price: number;
+  description?: string;
+  minAge?: number;
+  maxAge?: number;
+  sortOrder?: number;
+}
+
+export interface VariantSelection {
+  variantKey: string;
+  quantity: number;
+}
+
+export interface PriceBreakdown {
+  basePrice: number;
+  currency: string;
+  variants: Array<{
+    key: string;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+  }>;
+  total: number;
+}
+
+// i18n types (inline to avoid ESM resolution issues)
+export const SupportedLanguages = {
+  ES: 'es',
+  EN: 'en',
+  CA: 'ca',
+  FR: 'fr',
+  DE: 'de',
+} as const;
+
+export type SupportedLanguage = typeof SupportedLanguages[keyof typeof SupportedLanguages];
+
+export interface TranslatedText {
+  es?: string;
+  en?: string;
+  ca?: string;
+  fr?: string;
+  de?: string;
+}
+
+export interface OfferingTranslations {
+  [lang: string]: {
+    name: string;
+    description?: string;
+  };
+}
+
+export interface SiteTranslations {
+  [lang: string]: {
+    siteTitle?: string;
+    siteDescription?: string;
+    [key: string]: string | undefined;
+  };
 }
