@@ -1,9 +1,10 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-export default function RedsysFailedPage() {
+function RedsysFailedContent() {
   const searchParams = useSearchParams();
   const code = searchParams.get('code');
 
@@ -49,5 +50,13 @@ export default function RedsysFailedPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RedsysFailedPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <RedsysFailedContent />
+    </Suspense>
   );
 }

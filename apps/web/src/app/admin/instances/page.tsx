@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Domain = {
@@ -64,7 +64,7 @@ export default function AdminInstancesPage() {
     return headers;
   }, []);
 
-  const loadInstances = async () => {
+  const loadInstances = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -87,11 +87,11 @@ export default function AdminInstancesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authHeaders, router]);
 
   useEffect(() => {
     void loadInstances();
-  }, []);
+  }, [loadInstances]);
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();

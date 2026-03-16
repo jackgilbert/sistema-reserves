@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type ParkingSession = {
@@ -54,7 +54,7 @@ export default function AdminParkingPage() {
     return headers;
   }, []);
 
-  const loadSessions = async (nextStatus = status) => {
+  const loadSessions = useCallback(async (nextStatus = status) => {
     setLoading(true);
     setError('');
 
@@ -79,11 +79,11 @@ export default function AdminParkingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authHeaders, router, status]);
 
   useEffect(() => {
     void loadSessions(status);
-  }, [status]);
+  }, [loadSessions, status]);
 
   const handleManualOpen = async (event: React.FormEvent) => {
     event.preventDefault();
