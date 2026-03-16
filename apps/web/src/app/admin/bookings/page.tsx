@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 interface Booking {
   id: string;
@@ -175,7 +176,12 @@ export default function AdminBookingsPage() {
                     bookings.map((booking) => (
                       <tr key={booking.id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
-                          {booking.code}
+                          <Link
+                            href={`/admin/bookings/${booking.code}`}
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            {booking.code}
+                          </Link>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           <div>{booking.customerName}</div>

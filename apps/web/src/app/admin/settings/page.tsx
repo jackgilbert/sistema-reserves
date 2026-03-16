@@ -146,7 +146,7 @@ interface TenantSettings {
   };
 }
 
-type Tab = 'profile' | 'general' | 'features' | 'booking' | 'notifications' | 'integrations' | 'tax' | 'policies' | 'branding' | 'seo';
+type Tab = 'profile' | 'general' | 'features' | 'booking' | 'notifications' | 'integrations' | 'tools' | 'tax' | 'policies' | 'branding' | 'seo';
 
 export default function AdminSettingsPage() {
   const router = useRouter();
@@ -165,6 +165,12 @@ export default function AdminSettingsPage() {
     body: 'Este es un email de prueba.',
     html: '',
   });
+  const [templateToApply, setTemplateToApply] = useState<'museum' | 'restaurant' | 'event' | 'service'>('museum');
+  const [templateOverwrite, setTemplateOverwrite] = useState(false);
+  const [importPayload, setImportPayload] = useState('');
+  const [exportPayload, setExportPayload] = useState('');
+  const [compareResult, setCompareResult] = useState<any>(null);
+  const [validationResult, setValidationResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -394,6 +400,126 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const handleExportConfig = async () => {
+    setSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch('/api/settings/export', {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) throw new Error('Error al exportar configuración');
+
+      const payload = await response.json();
+      setExportPayload(JSON.stringify(payload, null, 2));
+      setSuccessMessage('Configuración exportada');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleValidateConfig = async () => {
+    setSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch('/api/settings/validate', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ featureFlags: features, settings }),
+      });
+
+      if (!response.ok) throw new Error('Error al validar configuración');
+
+      const payload = await response.json();
+      setValidationResult(payload);
+      setSuccessMessage(payload.valid ? 'Configuración válida' : 'Validación completada con errores');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCompareTemplate = async () => {
+    setSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch(`/api/settings/templates/compare?template=${encodeURIComponent(templateToApply)}`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) throw new Error('Error al comparar con plantilla');
+
+      const payload = await response.json();
+      setCompareResult(payload);
+      setSuccessMessage('Comparación generada');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleApplyTemplate = async () => {
+    setSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch('/api/settings/templates/apply', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ template: templateToApply, overwrite: templateOverwrite }),
+      });
+
+      if (!response.ok) throw new Error('Error al aplicar plantilla');
+
+      await loadAll();
+      setSuccessMessage('Plantilla aplicada');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleImportConfig = async () => {
+    setSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const payload = JSON.parse(importPayload || '{}');
+      const response = await fetch('/api/settings/import', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error('Error al importar configuración');
+
+      const result = await response.json();
+      if (result.success === false) {
+        throw new Error((result.errors || []).join(', ') || 'Importación rechazada');
+      }
+
+      await loadAll();
+      setSuccessMessage('Configuración importada');
+    } catch (err: any) {
+      setError(err.message || 'Error al importar configuración');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const updateSettings = (path: string[], value: any) => {
     if (!settings) return;
 
@@ -447,6 +573,7 @@ export default function AdminSettingsPage() {
     { id: 'booking', label: 'Reservas', icon: '📅' },
     { id: 'notifications', label: 'Notificaciones', icon: '📧' },
     { id: 'integrations', label: 'Integraciones', icon: '🔌' },
+    { id: 'tools', label: 'Operaciones', icon: '🧰' },
     { id: 'tax', label: 'Impuestos y Facturación', icon: '💰' },
     { id: 'policies', label: 'Políticas', icon: '📋' },
     { id: 'branding', label: 'Marca', icon: '🎨' },
@@ -1450,6 +1577,146 @@ export default function AdminSettingsPage() {
                 >
                   {saving ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
+              </div>
+            )}
+
+            {activeTab === 'tools' && (
+              <div className="space-y-8">
+                <h2 className="text-xl font-semibold mb-4">Operaciones avanzadas</h2>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="rounded-lg border border-gray-200 p-5">
+                    <h3 className="text-lg font-medium text-gray-900">Plantillas</h3>
+                    <p className="mt-1 text-sm text-gray-500">Compara o aplica una configuración base.</p>
+
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Plantilla</label>
+                        <select
+                          value={templateToApply}
+                          onChange={(e) => setTemplateToApply(e.target.value as any)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="museum">Museum</option>
+                          <option value="restaurant">Restaurant</option>
+                          <option value="event">Event</option>
+                          <option value="service">Service</option>
+                        </select>
+                      </div>
+
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={templateOverwrite}
+                          onChange={(e) => setTemplateOverwrite(e.target.checked)}
+                          className="mr-3 h-4 w-4 text-blue-600 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Sobrescribir configuración actual</span>
+                      </label>
+
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          onClick={handleCompareTemplate}
+                          disabled={saving}
+                          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50"
+                        >
+                          Comparar
+                        </button>
+                        <button
+                          onClick={handleApplyTemplate}
+                          disabled={saving}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          Aplicar plantilla
+                        </button>
+                      </div>
+                    </div>
+
+                    {compareResult && (
+                      <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
+                        <p className="font-medium text-gray-900">
+                          Diferencias: {compareResult.summary?.totalDifferences || 0}
+                        </p>
+                        <p className="mt-1 text-gray-600">
+                          Flags: {compareResult.summary?.flagsDifferent || 0} · Settings: {compareResult.summary?.settingsDifferent || 0}
+                        </p>
+                        <textarea
+                          readOnly
+                          value={JSON.stringify(compareResult.differences, null, 2)}
+                          rows={10}
+                          className="mt-3 w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 p-5">
+                    <h3 className="text-lg font-medium text-gray-900">Validación</h3>
+                    <p className="mt-1 text-sm text-gray-500">Verifica consistencia antes de exportar o importar.</p>
+
+                    <button
+                      onClick={handleValidateConfig}
+                      disabled={saving}
+                      className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      Validar configuración actual
+                    </button>
+
+                    {validationResult && (
+                      <div className="mt-4 rounded-lg bg-gray-50 p-4 text-sm">
+                        <p className={`font-medium ${validationResult.valid ? 'text-green-700' : 'text-red-700'}`}>
+                          {validationResult.valid ? 'Configuración válida' : 'Se detectaron errores'}
+                        </p>
+                        <textarea
+                          readOnly
+                          value={JSON.stringify(validationResult, null, 2)}
+                          rows={12}
+                          className="mt-3 w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="rounded-lg border border-gray-200 p-5">
+                    <h3 className="text-lg font-medium text-gray-900">Exportar</h3>
+                    <p className="mt-1 text-sm text-gray-500">Genera un snapshot JSON del tenant.</p>
+                    <button
+                      onClick={handleExportConfig}
+                      disabled={saving}
+                      className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50"
+                    >
+                      Exportar configuración
+                    </button>
+                    <textarea
+                      readOnly
+                      value={exportPayload}
+                      rows={16}
+                      className="mt-4 w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                      placeholder="La exportación aparecerá aquí"
+                    />
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 p-5">
+                    <h3 className="text-lg font-medium text-gray-900">Importar</h3>
+                    <p className="mt-1 text-sm text-gray-500">Pega un payload JSON exportado previamente.</p>
+                    <textarea
+                      value={importPayload}
+                      onChange={(e) => setImportPayload(e.target.value)}
+                      rows={16}
+                      className="mt-4 w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                      placeholder='{"featureFlags": {...}, "settings": {...}}'
+                    />
+                    <button
+                      onClick={handleImportConfig}
+                      disabled={saving}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Importar configuración
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
