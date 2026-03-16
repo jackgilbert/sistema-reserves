@@ -19,7 +19,9 @@ export async function POST(req: NextRequest) {
   const merchantParameters = form.get('Ds_MerchantParameters')?.toString() || null;
 
   const bookingCode = tryExtractBookingCode(merchantParameters);
-  const target = bookingCode ? `/confirm/${encodeURIComponent(bookingCode)}` : '/';
+  const target = bookingCode
+    ? `/payments/redsys/failed?code=${encodeURIComponent(bookingCode)}`
+    : '/payments/redsys/failed';
 
   return NextResponse.redirect(new URL(target, req.url), 303);
 }
@@ -27,7 +29,9 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const merchantParameters = req.nextUrl.searchParams.get('Ds_MerchantParameters');
   const bookingCode = tryExtractBookingCode(merchantParameters);
-  const target = bookingCode ? `/confirm/${encodeURIComponent(bookingCode)}` : '/';
+  const target = bookingCode
+    ? `/payments/redsys/failed?code=${encodeURIComponent(bookingCode)}`
+    : '/payments/redsys/failed';
 
   return NextResponse.redirect(new URL(target, req.url), 303);
 }

@@ -18,6 +18,10 @@ class CheckoutFromHoldDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  discountCode?: string;
 }
 
 @ApiTags('Payments')

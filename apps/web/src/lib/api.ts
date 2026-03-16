@@ -156,7 +156,7 @@ export const api = {
   },
 
   payments: {
-    checkout: (data: { holdId: string; email: string; name: string; phone?: string }) =>
+    checkout: (data: { holdId: string; email: string; name: string; phone?: string; discountCode?: string }) =>
       fetchApi<
         | { provider: 'none'; bookingCode: string; bookingStatus: string }
         | {
@@ -171,6 +171,14 @@ export const api = {
             };
           }
       >('/payments/checkout', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  discounts: {
+    validate: (data: { code: string; offeringId?: string }) =>
+      fetchApi<{ id: string; code: string; percentOff: number }>('/discounts/validate', {
         method: 'POST',
         body: JSON.stringify(data),
       }),

@@ -6,12 +6,23 @@ import { formatPrice, formatDate, formatTime } from '@/lib/utils';
 import { useLocale } from '@/components/LocaleProvider';
 import { api } from '@/lib/api';
 
+type AppliedDiscount = {
+  id: string;
+  code: string;
+  percentOff: number;
+};
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { locale } = useLocale();
   const [holdData, setHoldData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountLoading, setDiscountLoading] = useState(false);
+  const [discountError, setDiscountError] = useState<string | null>(null);
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
   
   const [formData, setFormData] = useState({
     customerName: '',
@@ -29,10 +40,32 @@ export default function CheckoutPage() {
     setHoldData(JSON.parse(data));
   }, [router]);
 
+  useEffect(() => {
+    if (!holdData?.hold?.expiresAt) {
+      setRemainingMs(null);
+      return;
+    }
+
+    const expiresAt = new Date(holdData.hold.expiresAt).getTime();
+    const tick = () => {
+      const next = expiresAt - Date.now();
+      setRemainingMs(next > 0 ? next : 0);
+    };
+
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [holdData]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!holdData) return;
+
+    if (remainingMs !== null && remainingMs <= 0) {
+      setError('El hold ha expirado. Vuelve a seleccionar un horario.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -48,6 +81,7 @@ export default function CheckoutPage() {
         email: formData.customerEmail,
         name: formData.customerName,
         phone: formData.customerPhone || undefined,
+        discountCode: appliedDiscount?.code,
       });
 
       // Limpiar hold local (evita reintentos accidentales si el usuario vuelve atrás)
@@ -91,9 +125,48 @@ export default function CheckoutPage() {
   }
 
   const { hold, offering, quantity, totalAmount: storedTotalAmount, ticketQuantities } = holdData;
-  const totalAmount = typeof storedTotalAmount === 'number'
+  const subtotalAmount = typeof storedTotalAmount === 'number'
     ? storedTotalAmount
     : offering.basePrice * quantity;
+  const discountAmount = appliedDiscount
+    ? Math.min(subtotalAmount, Math.round((subtotalAmount * appliedDiscount.percentOff) / 100))
+    : 0;
+  const totalAmount = Math.max(0, subtotalAmount - discountAmount);
+  const holdExpired = remainingMs !== null && remainingMs <= 0;
+  const countdown = remainingMs === null
+    ? null
+    : `${String(Math.floor(remainingMs / 60000)).padStart(2, '0')}:${String(Math.floor((remainingMs % 60000) / 1000)).padStart(2, '0')}`;
+
+  const handleApplyDiscount = async () => {
+    const code = discountCode.trim().toUpperCase();
+    if (!code) {
+      setDiscountError('Introduce un código de descuento');
+      return;
+    }
+
+    setDiscountLoading(true);
+    setDiscountError(null);
+
+    try {
+      const result = await api.discounts.validate({
+        code,
+        offeringId: offering.id,
+      });
+      setAppliedDiscount(result);
+      setDiscountCode(result.code);
+    } catch (err: any) {
+      setAppliedDiscount(null);
+      setDiscountError(err?.message || 'No se pudo validar el código');
+    } finally {
+      setDiscountLoading(false);
+    }
+  };
+
+  const handleRemoveDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountError(null);
+    setDiscountCode('');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -168,19 +241,79 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-medium text-gray-900">Código promocional</h3>
+                    <p className="text-sm text-gray-500">Aplica un descuento antes de pagar.</p>
+                  </div>
+                  {appliedDiscount && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveDiscount}
+                      className="text-sm text-red-600 hover:text-red-800"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(e) => {
+                      setDiscountCode(e.target.value.toUpperCase());
+                      setDiscountError(null);
+                    }}
+                    placeholder="PROMO2026"
+                    className="flex-1 rounded-lg border border-gray-300 px-4 py-2"
+                    disabled={discountLoading || !!appliedDiscount}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyDiscount}
+                    disabled={discountLoading || !!appliedDiscount}
+                    className="rounded-lg bg-gray-900 px-4 py-2 font-medium text-white hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {discountLoading ? 'Validando...' : 'Aplicar'}
+                  </button>
+                </div>
+
+                {discountError && <p className="text-sm text-red-700">{discountError}</p>}
+                {appliedDiscount && (
+                  <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
+                    Código <strong>{appliedDiscount.code}</strong> aplicado: {appliedDiscount.percentOff}% de descuento.
+                  </div>
+                )}
+              </div>
+
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-sm text-yellow-800">
-                  ⏱️ Tu reserva expira en <strong>10 minutos</strong>. Completa el pago para confirmarla.
+                  ⏱️ Tu reserva expira en <strong>{countdown || '00:00'}</strong>.
+                  {holdExpired
+                    ? ' El hold ya no es válido. Debes volver a seleccionar un horario.'
+                    : ' Completa el pago para confirmarla.'}
                 </p>
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || holdExpired}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-lg"
               >
-                {loading ? 'Procesando...' : 'Proceder al pago'}
+                {holdExpired ? 'Hold expirado' : loading ? 'Procesando...' : 'Proceder al pago'}
               </button>
+
+              {holdExpired && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/o/${offering.id}`)}
+                  className="w-full rounded-lg border border-gray-300 py-3 px-4 font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Elegir otro horario
+                </button>
+              )}
 
               <p className="text-xs text-gray-500 text-center">
                 Al continuar, aceptas nuestros términos y condiciones
@@ -242,9 +375,15 @@ export default function CheckoutPage() {
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium">
-                      {formatPrice(totalAmount, offering.currency, locale)}
+                      {formatPrice(subtotalAmount, offering.currency, locale)}
                     </span>
                   </div>
+                  {appliedDiscount && (
+                    <div className="flex justify-between mb-2 text-green-700">
+                      <span>Descuento {appliedDiscount.code}</span>
+                      <span>-{formatPrice(discountAmount, offering.currency, locale)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
                     <span className="text-blue-600">

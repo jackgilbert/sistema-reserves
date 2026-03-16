@@ -11,6 +11,7 @@ import { BookingsService } from '../bookings/bookings.service';
 import { SettingsService } from '../settings/settings.service';
 import { DiscountsService } from '../discounts/discounts.service';
 import { RedsysService } from './redsys/redsys.service';
+import { DiscountValidationResult } from '../discounts/discounts.service';
 
 export type CheckoutFromHoldRequest = {
   holdId: string;
@@ -41,6 +42,118 @@ export type CheckoutResponse =
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+
+  private calculateDiscountedAmount(amount: number, percentOff: number) {
+    const normalizedPercent = Math.max(0, Math.min(100, Math.floor(percentOff)));
+    const discountAmount = Math.min(
+      amount,
+      Math.round((amount * normalizedPercent) / 100),
+    );
+    const finalAmount = Math.max(0, amount - discountAmount);
+
+    return { discountAmount, finalAmount };
+  }
+
+  private async applyDiscountToBooking(
+    bookingId: string,
+    tenant: TenantContext,
+    discount: DiscountValidationResult,
+  ) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, tenantId: tenant.tenantId },
+      select: {
+        id: true,
+        totalAmount: true,
+        metadata: true,
+      },
+    });
+
+    if (!booking) {
+      throw new BadRequestException('Reserva no encontrada para aplicar descuento');
+    }
+
+    const applied = (booking.metadata as any)?.appliedDiscount;
+    if (applied?.id === discount.id) {
+      return {
+        bookingId: booking.id,
+        totalAmount: booking.totalAmount,
+        discountAmount: applied.amountOff || 0,
+      };
+    }
+
+    const { discountAmount, finalAmount } = this.calculateDiscountedAmount(
+      booking.totalAmount,
+      discount.percentOff,
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          totalAmount: finalAmount,
+          metadata: {
+            ...((booking.metadata as any) || {}),
+            appliedDiscount: {
+              id: discount.id,
+              code: discount.code,
+              percentOff: discount.percentOff,
+              amountOff: discountAmount,
+              appliedAt: new Date().toISOString(),
+            },
+          },
+        },
+      });
+
+      await tx.bookingItem.create({
+        data: {
+          bookingId: booking.id,
+          description: `Descuento ${discount.code} (${discount.percentOff}%)`,
+          quantity: 1,
+          unitPrice: -discountAmount,
+          totalPrice: -discountAmount,
+        },
+      });
+    });
+
+    return {
+      bookingId: booking.id,
+      totalAmount: finalAmount,
+      discountAmount,
+    };
+  }
+
+  private async redeemBookingDiscountIfNeeded(
+    bookingId: string,
+    tenant: TenantContext,
+  ) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, tenantId: tenant.tenantId },
+      select: {
+        id: true,
+        metadata: true,
+      },
+    });
+
+    if (!booking) return;
+
+    const applied = (booking.metadata as any)?.appliedDiscount;
+    if (!applied?.id || applied?.redeemedAt) return;
+
+    await this.discountsService.redeem(tenant, applied.id);
+
+    await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        metadata: {
+          ...((booking.metadata as any) || {}),
+          appliedDiscount: {
+            ...applied,
+            redeemedAt: new Date().toISOString(),
+          },
+        },
+      },
+    });
+  }
 
   constructor(
     private readonly prisma: PrismaClient,
@@ -90,6 +203,11 @@ export class PaymentsService {
         tenant,
       )) as { code: string; status: string };
 
+      if (discount) {
+        await this.applyDiscountToBooking((booking as any).id, tenant, discount);
+        await this.redeemBookingDiscountIfNeeded((booking as any).id, tenant);
+      }
+
       return {
         provider: 'none',
         bookingCode: booking.code,
@@ -106,6 +224,9 @@ export class PaymentsService {
         dto.phone,
         tenant,
       )) as { code: string; status: string };
+
+      await this.applyDiscountToBooking((booking as any).id, tenant, discount);
+      await this.redeemBookingDiscountIfNeeded((booking as any).id, tenant);
 
       return {
         provider: 'none',
@@ -135,10 +256,16 @@ export class PaymentsService {
       tenant,
     );
 
+    let amountToCharge = booking.totalAmount;
+    if (discount) {
+      const updated = await this.applyDiscountToBooking(booking.id, tenant, discount);
+      amountToCharge = updated.totalAmount;
+    }
+
     const payment = await this.prisma.payment.create({
       data: {
         bookingId: booking.id,
-        amount: booking.totalAmount,
+        amount: amountToCharge,
         currency: 'EUR', // Default currency
         status: 'PENDING',
         provider: 'redsys',
@@ -341,6 +468,16 @@ export class PaymentsService {
 
     try {
       await this.bookingsService.confirmPendingBookingPayment(payment.bookingId);
+      const bookingRecord = await this.prisma.booking.findUnique({
+        where: { id: payment.bookingId },
+        select: { tenantId: true },
+      });
+      if (bookingRecord) {
+        await this.redeemBookingDiscountIfNeeded(payment.bookingId, {
+          tenantId: bookingRecord.tenantId,
+          domain: '',
+        } as TenantContext);
+      }
       this.logger.log(`Payment confirmed for booking ${payment.bookingId}`);
     } catch (error) {
       this.logger.error(
