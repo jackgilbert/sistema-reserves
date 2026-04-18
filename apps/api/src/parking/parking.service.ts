@@ -4,10 +4,11 @@ import {
   BadRequestException,
   ConflictException,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { PrismaClient } from '@sistema-reservas/db';
 import { TenantContext } from '@sistema-reservas/shared';
-import { GateService } from './gate.service';
+import { GateProvider, GATE_PROVIDER } from './gate.service';
 
 /**
  * Normaliza matrícula: uppercase, sin espacios ni guiones
@@ -58,7 +59,7 @@ export class ParkingService {
 
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly gateService: GateService,
+    @Inject(GATE_PROVIDER) private readonly gateService: GateProvider,
   ) {}
 
   /**
