@@ -173,7 +173,7 @@ export class HikvisionGateService implements GateProvider {
     wwwAuthenticate: string,
     method: string,
     uri: string,
-    body: string,
+    _body: string,
   ): string {
     const realm = this.extractParam(wwwAuthenticate, 'realm');
     const nonce = this.extractParam(wwwAuthenticate, 'nonce');
