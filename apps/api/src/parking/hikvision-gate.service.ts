@@ -121,7 +121,7 @@ export class HikvisionGateService implements GateProvider {
 
           let authHeader: string;
           try {
-            authHeader = this.buildDigestHeader(wwwAuth, 'PUT', path, body);
+            authHeader = this.buildDigestHeader(wwwAuth, 'PUT', path);
           } catch (err) {
             return reject(err);
           }
@@ -173,7 +173,6 @@ export class HikvisionGateService implements GateProvider {
     wwwAuthenticate: string,
     method: string,
     uri: string,
-    _body: string,
   ): string {
     const realm = this.extractParam(wwwAuthenticate, 'realm');
     const nonce = this.extractParam(wwwAuthenticate, 'nonce');
